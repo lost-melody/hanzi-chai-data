@@ -34,9 +34,12 @@ export default {
 			case "GET":
 				const { keys } = await env.CHAI.list();
 				const result: Record<string, any> = {};
-				for (const key of keys) {
-					const value = await env.CHAI.get(key.name);
-					result[key.name] = JSON.parse(value!);
+				const promises = keys.map(key => env.CHAI.get(key.name));
+				const values = await Promise.all(promises);
+				for (let i = 0; i < keys.length; i++) {
+					const key = keys[i].name;
+					const value = values[i];
+					result[key] = JSON.parse(value!);
 				}
 				return new Response(JSON.stringify(result));
 			case "PUT":
