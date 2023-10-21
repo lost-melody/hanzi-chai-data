@@ -16,7 +16,7 @@ router
 		const stmt = env.CHAI.prepare('INSERT INTO repertoire (unicode, tygf, gb2312, pinyin) VALUES (?, ?, ?, ?)');
 		const result = await env.CHAI.batch(
 			data.map(({ unicode, tygf, gb2312, pinyin }) => {
-				return stmt.bind(unicode, +tygf, +gb2312, JSON.stringify(pinyin));
+				return stmt.bind(unicode, tygf, gb2312, pinyin);
 			})
 		);
 		return result;
@@ -32,7 +32,7 @@ router
 		);
 		const result = await env.CHAI.batch(
 			data.map(({ unicode, name, default_type, gf0014_id, component, compound }) => {
-				return stmt.bind(unicode, name, default_type, gf0014_id, JSON.stringify(component), JSON.stringify(compound));
+				return stmt.bind(unicode, name, default_type, gf0014_id, component, compound);
 			})
 		);
 		return result;
