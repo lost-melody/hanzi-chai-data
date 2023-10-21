@@ -1,55 +1,46 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { Router, error, json } from 'itty-router';
 
 export interface Env {
-	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
-	CHAI: KVNamespace;
-	//
-	// Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-	// MY_DURABLE_OBJECT: DurableObjectNamespace;
-	//
-	// Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
-	// MY_BUCKET: R2Bucket;
-	//
-	// Example binding to a Service. Learn more at https://developers.cloudflare.com/workers/runtime-apis/service-bindings/
-	// MY_SERVICE: Fetcher;
-	//
-	// Example binding to a Queue. Learn more at https://developers.cloudflare.com/queues/javascript-apis/
-	// MY_QUEUE: Queue;
+	CHAI: D1Database;
 }
 
+const router = Router();
+
+router
+	.get('/repertoire', async (request: Request, env: Env) => {
+		const { results } = await env.CHAI.prepare('SELECT * FROM repertoire').all();
+		return results;
+	})
+	.post('/repertoire', async (request: Request, env: Env) => {
+		const data: any[] = await request.json();
+		const stmt = env.CHAI.prepare('INSERT INTO repertoire (unicode, tygf, gb2312, pinyin) VALUES (?, ?, ?, ?)');
+		const result = await env.CHAI.batch(
+			data.map(({ unicode, tygf, gb2312, pinyin }) => {
+				return stmt.bind(unicode, +tygf, +gb2312, JSON.stringify(pinyin));
+			})
+		);
+		return result;
+	})
+	.get('/form', async (request: Request, env: Env) => {
+		const { results } = await env.CHAI.prepare('SELECT * FROM form').all();
+		return results;
+	})
+	.post('/form', async (request: Request, env: Env) => {
+		const data: any[] = await request.json();
+		const stmt = env.CHAI.prepare(
+			'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound) VALUES (?, ?, ?, ?, ?, ?)'
+		);
+		const result = await env.CHAI.batch(
+			data.map(({ unicode, name, default_type, gf0014_id, component, compound }) => {
+				return stmt.bind(unicode, name, default_type, gf0014_id, JSON.stringify(component), JSON.stringify(compound));
+			})
+		);
+		return result;
+	})
+	.all('*', () => error(404));
+
 export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		const { url, method } = request;
-		const { pathname } = new URL(url);
-		const name = pathname.slice(1);
-		switch (method) {
-			case "GET":
-				const { keys } = await env.CHAI.list();
-				const result: Record<string, any> = {};
-				const promises = keys.map(key => env.CHAI.get(key.name));
-				const values = await Promise.all(promises);
-				for (let i = 0; i < keys.length; i++) {
-					const key = keys[i].name;
-					const value = values[i];
-					result[key] = JSON.parse(value!);
-				}
-				return new Response(JSON.stringify(result));
-			case "PUT":
-				const upload = await request.json();
-				const { commit } = (upload as any).context;
-				const key = `${name}#${commit}`;
-				await env.CHAI.put(key, JSON.stringify(upload));
-				return new Response(JSON.stringify({ success: true }));
-			default:
-				return new Response("Unknown method");
-		}
+	async fetch(request: Request, env: Env): Promise<Response> {
+		return await router.handle(request, env).then(json);
 	},
 };
