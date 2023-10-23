@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS repertoire;
 DROP TABLE IF EXISTS form;
+DROP TABLE IF EXISTS alias;
 
 CREATE TABLE IF NOT EXISTS repertoire (
 	unicode INTEGER PRIMARY KEY,
@@ -14,5 +15,6 @@ CREATE TABLE IF NOT EXISTS form (
 	default_type INTEGER,
 	gf0014_id INTEGER,
 	component TEXT,
-	compound TEXT
+	compound TEXT,
+	slice TEXT
 );

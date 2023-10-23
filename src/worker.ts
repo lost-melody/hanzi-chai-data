@@ -1,4 +1,7 @@
 import { Router, error, json } from 'itty-router';
+import { createCors } from 'itty-router';
+
+const { preflight, corsify } = createCors();
 
 export interface Env {
 	CHAI: D1Database;
@@ -7,6 +10,7 @@ export interface Env {
 const router = Router();
 
 router
+	.all('*', preflight)
 	.get('/repertoire', async (request: Request, env: Env) => {
 		const { results } = await env.CHAI.prepare('SELECT * FROM repertoire').all();
 		return results;
@@ -28,11 +32,11 @@ router
 	.post('/form', async (request: Request, env: Env) => {
 		const data: any[] = await request.json();
 		const stmt = env.CHAI.prepare(
-			'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound) VALUES (?, ?, ?, ?, ?, ?)'
+			'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?)'
 		);
 		const result = await env.CHAI.batch(
-			data.map(({ unicode, name, default_type, gf0014_id, component, compound }) => {
-				return stmt.bind(unicode, name, default_type, gf0014_id, component, compound);
+			data.map(({ unicode, name, default_type, gf0014_id, component, compound, slice }) => {
+				return stmt.bind(unicode, name, default_type, gf0014_id, component, compound, slice);
 			})
 		);
 		return result;
@@ -41,6 +45,6 @@ router
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
-		return await router.handle(request, env).then(json);
+		return await router.handle(request, env).then(json).then(corsify);
 	},
 };
