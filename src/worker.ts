@@ -17,10 +17,12 @@ const router = Router()
 
 - `src`
 	- `router`: 所有路由定义
+	- `def`: 全局常量定义
 	- `dto`: 所有交互数据类型定义
 	- `error`: 错误类型定义和枚举
 	- `controller`: 所有请求处理逻辑
 	- `model`: 所有数据库操作接口
+	- `utils`: 一些通用的工具函数
 */
 
 export default {
