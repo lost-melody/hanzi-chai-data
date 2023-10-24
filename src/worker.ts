@@ -32,7 +32,7 @@ router
 	.post('/form', async (request: Request, env: Env) => {
 		const data: any[] = await request.json();
 		const stmt = env.CHAI.prepare(
-			'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?)'
+			'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)'
 		);
 		const result = await env.CHAI.batch(
 			data.map(({ unicode, name, default_type, gf0014_id, component, compound, slice }) => {
