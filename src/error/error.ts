@@ -19,6 +19,10 @@ export enum ErrCode {
 	ResourceNotFound = "RES-00000002",
 	/** 记录不存在 */
 	RecordNotFound = "DB-10000001",
+	/** 用户JWT无效 */
+	Unauthorized = "AUTH-10000001",
+	/** 用户权限不足 */
+	PermissionDenied = "AUTH-10000002",
 };
 
 /** 带有错误的返回值 */
