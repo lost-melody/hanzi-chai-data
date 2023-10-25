@@ -6,4 +6,5 @@ export const routerUsers = Router({ base: "/api/users" })
 	.get("/", users.List)
 	.get("/:id", users.Info)
 	.post("/", authorizedUser, authorizedAdmin, users.Create)
-	.delete("/:id", authorizedUser, authorizedAdmin, users.Delete);
+	.delete("/:id", authorizedUser, authorizedAdmin, users.Delete)
+	.put("/:id", authorizedUser, users.Delete);

@@ -15,10 +15,23 @@ export class Err {
 export enum ErrCode {
 	/** 未知错误 */
 	UnknownInnerError = "SYS-00000001",
+
 	/** 资源不存在 */
 	ResourceNotFound = "RES-00000002",
+
 	/** 记录不存在 */
 	RecordNotFound = "DB-10000001",
+	/** 记录已存在 */
+	RecordExists = "DB-10000002",
+	/** 数据查询失败 */
+	DataQueryFailed = "DB-10000003",
+	/** 数据创建失败 */
+	DataCreateFailed = "DB-10000004",
+	/** 数据删除失败 */
+	DataDeleteFailed = "DB-10000005",
+	/** 数据更新失败 */
+	DataUpdateFailed = "DB-10000006",
+
 	/** 用户JWT无效 */
 	Unauthorized = "AUTH-10000001",
 	/** 用户权限不足 */

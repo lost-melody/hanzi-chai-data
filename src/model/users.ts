@@ -26,9 +26,15 @@ export class UserModel {
 	}
 
 	public static async byId(env: Env, id: string): Promise<Result<UserModel>> {
-		const res = await env.CHAI.prepare(
-			`SELECT * FROM ${tableUsers} WHERE id=? LIMIT 1`
-		).bind(id).first();
+		var res;
+		try {
+			res = await env.CHAI.prepare(
+				`SELECT * FROM ${tableUsers} WHERE id=? LIMIT 1`
+			).bind(id).first();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataQueryFailed, "数据查询失败");
+		}
 
 		if (res === null) {
 			return new Err(ErrCode.RecordNotFound, "用户不存在");
@@ -38,9 +44,15 @@ export class UserModel {
 	}
 
 	public static async byEmail(env: Env, email: string): Promise<Result<UserModel>> {
-		const res = await env.CHAI.prepare(
-			`SELECT * FROM ${tableUsers} WHERE email=? LIMIT 1`
-		).bind(email).first();
+		var res;
+		try {
+			res = await env.CHAI.prepare(
+				`SELECT * FROM ${tableUsers} WHERE email=? LIMIT 1`
+			).bind(email).first();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataQueryFailed, "数据查询失败");
+		}
 
 		if (res === null) {
 			return new Err(ErrCode.RecordNotFound, "用户不存在");
@@ -49,31 +61,79 @@ export class UserModel {
 		return UserModel.modelFromRecord(res);
 	}
 
+	/** 指定ID或邮箱的用户是否存在 */
+	public static async exist(env: Env, id: string, email: string): Promise<Result<boolean>> {
+		var res;
+		try {
+			res = await env.CHAI.prepare(
+				`SELECT COUNT(0) total FROM ${tableUsers} WHERE id=? OR email=?`
+			).bind(id, email).first("total");
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataQueryFailed, "数据查询失败");
+		}
+		return loadNumber(res) !== 0;
+	}
+
 	public static async count(env: Env): Promise<Result<number>> {
-		const res = await env.CHAI.prepare(`SELECT COUNT(0) total FROM ${tableUsers}`).first("total");
+		var res;
+		try {
+			res = await env.CHAI.prepare(`SELECT COUNT(0) total FROM ${tableUsers}`).first("total");
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataQueryFailed, "数据查询失败");
+		}
 		return loadNumber(res);
 	}
 
 	public static async list(env: Env, offset: number, limit: number): Promise<Result<UserModel[]>> {
-		const res = await env.CHAI.prepare(
-			`SELECT * FROM ${tableUsers} LIMIT ${limit} OFFSET ${offset}`
-		).all();
+		var res;
+		try {
+			res = await env.CHAI.prepare(
+				`SELECT * FROM ${tableUsers} LIMIT ? OFFSET ?`
+			).bind(limit, offset).all();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataQueryFailed, "数据查询失败");
+		}
 
 		const { results } = res;
 		return results.map((record) => UserModel.modelFromRecord(record));
 	}
 
 	public static async create(env: Env, user: UserModel): Promise<Result<boolean>> {
-		await env.CHAI.prepare(
-			`INSERT INTO ${tableUsers} (id, name, email, avatar, password) VALUES (?, ?, ?, ?, ?)`
-		).bind(user.id, user.name, user.email, user.avatar, user.password).run();
+		try {
+			await env.CHAI.prepare(
+				`INSERT INTO ${tableUsers} (id, name, email, avatar, password) VALUES (?, ?, ?, ?, ?)`
+			).bind(user.id, user.name, user.email, user.avatar, user.password).run();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataCreateFailed, "数据创建失败");
+		}
 		return true;
 	}
 
 	public static async delete(env: Env, id: string): Promise<Result<boolean>> {
-		await env.CHAI.prepare(
-			`DELETE FROM ${tableUsers} WHERE id=?`
-		).bind(id).run();
+		try {
+			await env.CHAI.prepare(
+				`DELETE FROM ${tableUsers} WHERE id=?`
+			).bind(id).run();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataDeleteFailed, "数据删除失败");
+		}
+		return true;
+	}
+
+	public static async update(env: Env, user: UserModel): Promise<Result<boolean>> {
+		try {
+			await env.CHAI.prepare(
+				`UPDATE ${tableUsers} SET name=?, email=?, avatar=?, password=? WHERE id=?`
+			).bind(user.name, user.email, user.avatar, user.password, user.id).run();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataUpdateFailed, "数据更新失败");
+		}
 		return true;
 	}
 }
