@@ -1,8 +1,8 @@
-import { decode, sign, verify } from "@tsndr/cloudflare-worker-jwt";
-import { UnixHour } from "../def/constants";
-import { random } from "../utils/random";
-import { nowUnix } from "../utils/time";
-import { Err, ErrCode, Result } from "../error/error";
+import { decode, sign, verify } from '@tsndr/cloudflare-worker-jwt';
+import { UnixHour } from '../def/constants';
+import { random } from '../utils/random';
+import { nowUnix } from '../utils/time';
+import { Err, ErrCode, Result } from '../error/error';
 
 /** JWT 有效期, 默认 2 小时 */
 const JwtExpires = 2 * UnixHour;
@@ -12,10 +12,10 @@ const JwtKey = Math.round(random(0, 0xffffffff)).toString(16);
 const JwtPubKey = JwtKey;
 
 export class Claims {
-	jti: string = "";
+	jti: string = '';
 	iat: number = 0;
 	exp: number = 0;
-	uid: string = "";
+	uid: string = '';
 
 	public async sign(key?: string): Promise<string> {
 		return await sign(this, key || JwtKey);
@@ -32,19 +32,19 @@ export class Claims {
 
 	public static async parse(token: string, key?: string): Promise<Result<Claims>> {
 		try {
-			if (!await verify(token, key || JwtPubKey)) {
-				return new Err(ErrCode.Unauthorized, "invalid token");
+			if (!(await verify(token, key || JwtPubKey))) {
+				return new Err(ErrCode.Unauthorized, 'invalid token');
 			}
 		} catch (err) {
-			return new Err(ErrCode.Unauthorized, "invalid token");
+			return new Err(ErrCode.Unauthorized, 'invalid token');
 		}
 
 		const { payload } = decode(token);
 		var claims = new Claims();
-		claims.jti = payload.jti || "";
+		claims.jti = payload.jti || '';
 		claims.iat = payload.iat || 0;
 		claims.exp = payload.exp || 0;
-		claims.uid = payload.uid || "";
+		claims.uid = payload.uid || '';
 		return claims;
 	}
-};
+}
