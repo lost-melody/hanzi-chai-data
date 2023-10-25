@@ -1,7 +1,5 @@
 import { IRequest } from "itty-router";
-import { compareSync, hashSync } from "bcrypt";
 import { Env } from "../dto/context";
-import { BcryptSaltRounds } from "../def/constants";
 import { Err, ErrCode, Ok, Result } from "../error/error";
 import { User, UserList, UserLogin } from "../dto/users";
 import { loadString } from "../dto/load";
@@ -19,12 +17,16 @@ function userFromModel(userModel: UserModel): User {
 	return user;
 }
 
-function hashPassword(password: string): string {
-	return hashSync(password, BcryptSaltRounds);
+/** 输入 -> SHA1 -> Base64 -> 输出 */
+async function hashPassword(password: string): Promise<string> {
+	const buffer = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(password));
+	return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }
 
-function verifyPassword(password: string, hash: string) {
-	return compareSync(password, hash);
+/** 将给定的密码与库中记录比对 */
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+	const newHash = await hashPassword(password);
+	return newHash === hash;
 }
 
 /** GET:/api/users?page=1&size=20 */
@@ -94,7 +96,7 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 	// TODO: 头像上传需要对象存储功能, 现在可以存为 url 或图像 base64
 	userModel.avatar = loadString(args.avatar);
 	// 密码在前端请求中使用 md5 或 sha1, 后端再将之存为 bcrypt
-	userModel.password = hashPassword(loadString(args.password));
+	userModel.password = await hashPassword(loadString(args.password));
 	return await UserModel.create(env, userModel);
 }
 
@@ -142,10 +144,10 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 		return userModel;
 	}
 
-	if (verifyPassword(password, userModel.password)) {
+	if (await verifyPassword(password, userModel.password)) {
 		// 密码正确
 		const user = userFromModel(userModel);
-		const token = Claims.new(user.id).sign();
+		const token = await Claims.new(user.id).sign();
 		// 返回用户信息和 jwt
 		return new UserLogin(user, token);
 	} else {
