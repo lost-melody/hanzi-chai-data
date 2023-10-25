@@ -14,10 +14,12 @@ export class Err {
 /** 错误码枚举 */
 export enum ErrCode {
 	/** 未知错误 */
-	UnknownInnerError = "SYS-00000001",
+	UnknownInnerError = "SYS-10000001",
 
 	/** 资源不存在 */
-	ResourceNotFound = "RES-00000002",
+	ResourceNotFound = "RES-10000001",
+	/** 参数错误 */
+	ParamInvalid = "RES-10000002",
 
 	/** 记录不存在 */
 	RecordNotFound = "DB-10000001",

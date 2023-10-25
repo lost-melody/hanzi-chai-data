@@ -7,6 +7,13 @@ import { UserModel } from "../model/users";
 import { Claims } from "../dto/jwt";
 import { authorizedAdmin } from "../middleware/jwt";
 
+/** 字母开头, 字母或数字结尾, [_-] 连接 */
+const patUid = /^[a-zA-Z]+([_-][a-zA-Z0-9]+)*$/;
+/** 任意字符 */
+const patName = /^.+$/;
+/** 字母数字邮箱 */
+const patEmail = /^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+([.][a-zA-Z0-9_-]+)+$/;
+
 function userFromModel(userModel: UserModel): User {
 	var user = new User();
 	user.id = userModel.id;
@@ -18,7 +25,7 @@ function userFromModel(userModel: UserModel): User {
 	return user;
 }
 
-async function userToModel(user: any): Promise<UserModel> {
+async function userToModel(user: any): Promise<Result<UserModel>> {
 	var userModel = new UserModel();
 	userModel.id = loadString(user.id);
 	userModel.name = loadString(user.name);
@@ -27,7 +34,11 @@ async function userToModel(user: any): Promise<UserModel> {
 	userModel.avatar = loadString(user.avatar);
 	// 密码在前端请求中使用 md5 或 sha1, 后端再将之存为 bcrypt
 	userModel.password = await hashPassword(loadString(user.password));
-	return userModel;
+	if (userModel.id.match(patUid) && userModel.name.match(patName) && userModel.email.match(patEmail)) {
+		return userModel;
+	} else {
+		return new Err(ErrCode.ParamInvalid, "参数格式不正确");
+	}
 }
 
 /** 输入 -> SHA1 -> Base64 -> 输出 */
@@ -94,13 +105,17 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 		if (body.id && body.email) {
 			args = body;
 		} else {
-			return new Err(ErrCode.ResourceNotFound, "用户名或邮箱不正确");
+			return new Err(ErrCode.ParamInvalid, "用户名或邮箱不正确");
 		}
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
 	}
 
 	const userModel = await userToModel(args);
+	if (!Ok(userModel)) {
+		return userModel as Err;
+	}
+
 	// 用户名或邮箱是否已存在
 	var exist = await UserModel.exist(env, userModel.id, userModel.email);
 	if (!Ok(exist)) {
@@ -118,7 +133,7 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
 	const userId = request.params["id"];
 	if (!userId) {
-		return new Err(ErrCode.ResourceNotFound, "用户名不正确");
+		return new Err(ErrCode.ParamInvalid, "用户名不正确");
 	}
 
 	const userModel = await UserModel.byId(env, userId);
@@ -133,7 +148,7 @@ export async function Delete(request: IRequest, env: Env): Promise<Result<boolea
 export async function Update(request: IRequest, env: Env): Promise<Result<boolean>> {
 	const userId = request.params["id"];
 	if (!userId) {
-		return new Err(ErrCode.ResourceNotFound, "用户名不正确");
+		return new Err(ErrCode.ParamInvalid, "用户名不正确");
 	}
 
 	if (userId !== env.UserId) {
@@ -160,6 +175,10 @@ export async function Update(request: IRequest, env: Env): Promise<Result<boolea
 
 	// 更新
 	var newModel = await userToModel(args);
+	if (!Ok(newModel)) {
+		return newModel as Err;
+	}
+
 	newModel.id = userId;
 	newModel.name = newModel.name || userModel.name;
 	newModel.email = newModel.email || userModel.email;
@@ -176,7 +195,7 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 		if (body.username && body.password) {
 			args = body;
 		} else {
-			return new Err(ErrCode.ResourceNotFound, "用户名或密码不正确");
+			return new Err(ErrCode.ParamInvalid, "用户名或密码不正确");
 		}
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
@@ -186,14 +205,13 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 	const password = loadString(args.password);
 
 	var userModel;
-	// if (username.match(/@/)) {
-	// 	// 通过邮箱登录
-	// 	userModel = await UserModel.byEmail(env, username);
-	// } else {
-	// 	// 通过用户名登录
-	// 	userModel = await UserModel.byId(env, username);
-	// }
-	userModel = await UserModel.byId(env, username);
+	if (username.match(/@/)) {
+		// 通过邮箱登录
+		userModel = await UserModel.byEmail(env, username);
+	} else {
+		// 通过用户名登录
+		userModel = await UserModel.byId(env, username);
+	}
 	if (!Ok(userModel)) {
 		return userModel as Err;
 	}
@@ -205,6 +223,6 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 		// 返回用户信息和 jwt
 		return new UserLogin(user, token);
 	} else {
-		return new Err(ErrCode.ResourceNotFound, "用户名或密码错误");
+		return new Err(ErrCode.ParamInvalid, "用户名或密码错误");
 	}
 }
