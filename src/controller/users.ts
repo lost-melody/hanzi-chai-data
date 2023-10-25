@@ -5,6 +5,7 @@ import { User, UserList, UserLogin } from "../dto/users";
 import { loadString } from "../dto/load";
 import { UserModel } from "../model/users";
 import { Claims } from "../dto/jwt";
+import { authorizedAdmin } from "../middleware/jwt";
 
 function userFromModel(userModel: UserModel): User {
 	var user = new User();
@@ -15,6 +16,18 @@ function userFromModel(userModel: UserModel): User {
 	user.role = userModel.role;
 	user.state = userModel.state;
 	return user;
+}
+
+async function userToModel(user: any): Promise<UserModel> {
+	var userModel = new UserModel();
+	userModel.id = loadString(user.id);
+	userModel.name = loadString(user.name);
+	userModel.email = loadString(user.email);
+	// TODO: 头像上传需要对象存储功能, 现在可以存为 url 或图像 base64
+	userModel.avatar = loadString(user.avatar);
+	// 密码在前端请求中使用 md5 或 sha1, 后端再将之存为 bcrypt
+	userModel.password = await hashPassword(loadString(user.password));
+	return userModel;
 }
 
 /** 输入 -> SHA1 -> Base64 -> 输出 */
@@ -87,16 +100,17 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
 	}
 
-	// TODO: 确保用户名和邮箱都无重, 需要加锁
+	const userModel = await userToModel(args);
+	// 用户名或邮箱是否已存在
+	var exist = await UserModel.exist(env, userModel.id, userModel.email);
+	if (!Ok(exist)) {
+		return exist as Err;
+	}
+	// TODO: 需要确保这个 if-then 的原子性
+	if (exist) {
+		return new Err(ErrCode.RecordExists, "用户已存在");
+	}
 
-	var userModel = new UserModel();
-	userModel.id = loadString(args.id);
-	userModel.name = loadString(args.name);
-	userModel.email = loadString(args.email);
-	// TODO: 头像上传需要对象存储功能, 现在可以存为 url 或图像 base64
-	userModel.avatar = loadString(args.avatar);
-	// 密码在前端请求中使用 md5 或 sha1, 后端再将之存为 bcrypt
-	userModel.password = await hashPassword(loadString(args.password));
 	return await UserModel.create(env, userModel);
 }
 
@@ -109,10 +123,49 @@ export async function Delete(request: IRequest, env: Env): Promise<Result<boolea
 
 	const userModel = await UserModel.byId(env, userId);
 	if (!Ok(userModel)) {
-		return userModel;
+		return userModel as Err;
 	}
 
 	return await UserModel.delete(env, userId);
+}
+
+/** PUT:/api/users/:id */
+export async function Update(request: IRequest, env: Env): Promise<Result<boolean>> {
+	const userId = request.params["id"];
+	if (!userId) {
+		return new Err(ErrCode.ResourceNotFound, "用户名不正确");
+	}
+
+	if (userId !== env.UserId) {
+		// 修改他人信息, 要求管理员
+		const auth = await authorizedAdmin(request, env);
+		if (!Ok(auth)) {
+			return auth as Err;
+		}
+	}
+
+	// 用户存在
+	const userModel = await UserModel.byId(env, userId);
+	if (!Ok(userModel)) {
+		return userModel as Err;
+	}
+
+	// 请求参数
+	var args: any = {};
+	try {
+		args = await request.json();
+	} catch (err) {
+		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
+	}
+
+	// 更新
+	var newModel = await userToModel(args);
+	newModel.id = userId;
+	newModel.name = newModel.name || userModel.name;
+	newModel.email = newModel.email || userModel.email;
+	newModel.avatar = newModel.avatar || userModel.avatar;
+	newModel.password = newModel.password || userModel.password;
+	return await UserModel.update(env, userModel);
 }
 
 /** POST:/api/login */
@@ -123,7 +176,7 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 		if (body.username && body.password) {
 			args = body;
 		} else {
-			return new Err(ErrCode.ResourceNotFound, "用户名不正确");
+			return new Err(ErrCode.ResourceNotFound, "用户名或密码不正确");
 		}
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
@@ -133,15 +186,16 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 	const password = loadString(args.password);
 
 	var userModel;
-	if (username.match(/@/)) {
-		// 通过邮箱登录
-		userModel = await UserModel.byEmail(env, username);
-	} else {
-		// 通过用户名登录
-		userModel = await UserModel.byId(env, username);
-	}
+	// if (username.match(/@/)) {
+	// 	// 通过邮箱登录
+	// 	userModel = await UserModel.byEmail(env, username);
+	// } else {
+	// 	// 通过用户名登录
+	// 	userModel = await UserModel.byId(env, username);
+	// }
+	userModel = await UserModel.byId(env, username);
 	if (!Ok(userModel)) {
-		return userModel;
+		return userModel as Err;
 	}
 
 	if (await verifyPassword(password, userModel.password)) {
