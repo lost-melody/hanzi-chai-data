@@ -1,4 +1,4 @@
-import { JwtPayload, sign, verify } from "jsonwebtoken";
+import { decode, sign, verify } from "@tsndr/cloudflare-worker-jwt";
 import { UnixHour } from "../def/constants";
 import { random } from "../utils/random";
 import { nowUnix } from "../utils/time";
@@ -11,14 +11,14 @@ const JwtKey = Math.round(random(0, 0xffffffff)).toString(16);
 /** JWT 签名公钥: 应该出现在配置文件中 */
 const JwtPubKey = JwtKey;
 
-export class Claims implements JwtPayload {
+export class Claims {
 	jti: string = "";
 	iat: number = 0;
 	exp: number = 0;
 	uid: string = "";
 
-	public sign(key?: string): string {
-		return sign(this, key || JwtKey);
+	public async sign(key?: string): Promise<string> {
+		return await sign(this, key || JwtKey);
 	}
 
 	public static new(userId: string, expires?: number): Claims {
@@ -30,20 +30,21 @@ export class Claims implements JwtPayload {
 		return claims;
 	}
 
-	public static parse(token: string, key?: string): Result<Claims> {
+	public static async parse(token: string, key?: string): Promise<Result<Claims>> {
 		try {
-			const payload = verify(token, key || JwtPubKey);
-			if (typeof payload === "string") {
+			if (!await verify(token, key || JwtPubKey)) {
 				return new Err(ErrCode.Unauthorized, "invalid token");
 			}
-			var claims = new Claims();
-			claims.jti = payload.jti || "";
-			claims.iat = payload.iat || 0;
-			claims.exp = payload.exp || 0;
-			claims.uid = payload.uid || "";
-			return claims;
 		} catch (err) {
 			return new Err(ErrCode.Unauthorized, "invalid token");
 		}
+
+		const { payload } = decode(token);
+		var claims = new Claims();
+		claims.jti = payload.jti || "";
+		claims.iat = payload.iat || 0;
+		claims.exp = payload.exp || 0;
+		claims.uid = payload.uid || "";
+		return claims;
 	}
 };
