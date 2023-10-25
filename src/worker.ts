@@ -1,16 +1,15 @@
-import { Router, error, json } from 'itty-router';
-import { createCors } from 'itty-router';
-
+import { createCors, error, Router, json } from 'itty-router';
+import { Env } from './dto/context';
+import { Err, ErrCode } from './error/error';
+import { routerApi } from './router/router';
 const { preflight, corsify } = createCors();
-import { Env } from "./dto/context";
-import { Err, ErrCode } from "./error/error";
-import { routerApi } from "./router/router";
 
 const router = Router()
+	.all('*', preflight)
 	// 主路由
-	.all("/api/*", routerApi.handle)
+	.all('*', routerApi.handle)
 	// fallback
-	.all('*', () => error(404, new Err(ErrCode.ResourceNotFound, "资源不存在")));
+	.all('*', () => error(404, new Err(ErrCode.ResourceNotFound, '资源不存在')));
 
 /*
 # 目录结构

@@ -1,11 +1,11 @@
-import { IRequest } from "itty-router";
-import { Env } from "../dto/context";
-import { Err, ErrCode, Ok, Result } from "../error/error";
-import { User, UserList, UserLogin } from "../dto/users";
-import { loadString } from "../dto/load";
-import { UserModel } from "../model/users";
-import { Claims } from "../dto/jwt";
-import { authorizedAdmin } from "../middleware/jwt";
+import { IRequest } from 'itty-router';
+import { Env } from '../dto/context';
+import { Err, ErrCode, Ok, Result } from '../error/error';
+import { User, UserList, UserLogin } from '../dto/users';
+import { loadString } from '../dto/load';
+import { UserModel } from '../model/users';
+import { Claims } from '../dto/jwt';
+import { authorizedAdmin } from '../middleware/jwt';
 
 /** 字母开头, 字母或数字结尾, [_-] 连接 */
 const patUid = /^[a-zA-Z]+([_-][a-zA-Z0-9]+)*$/;
@@ -37,13 +37,13 @@ async function userToModel(user: any): Promise<Result<UserModel>> {
 	if (userModel.id.match(patUid) && userModel.name.match(patName) && userModel.email.match(patEmail)) {
 		return userModel;
 	} else {
-		return new Err(ErrCode.ParamInvalid, "参数格式不正确");
+		return new Err(ErrCode.ParamInvalid, '参数格式不正确');
 	}
 }
 
 /** 输入 -> SHA1 -> Base64 -> 输出 */
 async function hashPassword(password: string): Promise<string> {
-	const buffer = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(password));
+	const buffer = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(password));
 	return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }
 
@@ -84,7 +84,7 @@ export async function List(request: IRequest, env: Env): Promise<Result<UserList
 
 /** GET:/api/users/:id */
 export async function Info(request: IRequest, env: Env): Promise<Result<User>> {
-	const userId = request.params["id"];
+	const userId = request.params['id'];
 
 	// 从 `model` 层取回数据
 	const result = await UserModel.byId(env, userId);
@@ -105,7 +105,7 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 		if (body.id && body.email) {
 			args = body;
 		} else {
-			return new Err(ErrCode.ParamInvalid, "用户名或邮箱不正确");
+			return new Err(ErrCode.ParamInvalid, '用户名或邮箱不正确');
 		}
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
@@ -123,7 +123,7 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 	}
 	// TODO: 需要确保这个 if-then 的原子性
 	if (exist) {
-		return new Err(ErrCode.RecordExists, "用户已存在");
+		return new Err(ErrCode.RecordExists, '用户已存在');
 	}
 
 	return await UserModel.create(env, userModel);
@@ -131,9 +131,9 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 
 /** DELETE:/api/users/:id */
 export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
-	const userId = request.params["id"];
+	const userId = request.params['id'];
 	if (!userId) {
-		return new Err(ErrCode.ParamInvalid, "用户名不正确");
+		return new Err(ErrCode.ParamInvalid, '用户名不正确');
 	}
 
 	const userModel = await UserModel.byId(env, userId);
@@ -146,9 +146,9 @@ export async function Delete(request: IRequest, env: Env): Promise<Result<boolea
 
 /** PUT:/api/users/:id */
 export async function Update(request: IRequest, env: Env): Promise<Result<boolean>> {
-	const userId = request.params["id"];
+	const userId = request.params['id'];
 	if (!userId) {
-		return new Err(ErrCode.ParamInvalid, "用户名不正确");
+		return new Err(ErrCode.ParamInvalid, '用户名不正确');
 	}
 
 	if (userId !== env.UserId) {
@@ -195,7 +195,7 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 		if (body.username && body.password) {
 			args = body;
 		} else {
-			return new Err(ErrCode.ParamInvalid, "用户名或密码不正确");
+			return new Err(ErrCode.ParamInvalid, '用户名或密码不正确');
 		}
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
@@ -223,6 +223,6 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 		// 返回用户信息和 jwt
 		return new UserLogin(user, token);
 	} else {
-		return new Err(ErrCode.ParamInvalid, "用户名或密码错误");
+		return new Err(ErrCode.ParamInvalid, '用户名或密码错误');
 	}
 }
