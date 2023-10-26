@@ -2,10 +2,8 @@
 
 ## DTO
 
-- 用户模型 (`User`):
-
 <details>
-<summary><code> User </code></summary>
+<summary> 用户模型 <code> User </code></summary>
 
 ```json
 {
@@ -24,10 +22,8 @@
 
 </details>
 
-- 用户列表 (`UserList`, 其中 `items` 字段为 `User[]` 模型列表):
-
 <details>
-<summary><code> UserList </code></summary>
+<summary> 用户列表 <code> DataList&lt;User&gt; </code></summary>
 
 ```json
 {
@@ -41,14 +37,12 @@
 > - `total`: 数据库中的用户总数
 > - `page`: 当前返回的数据分页
 > - `size`: 当前的分页大小
-> - `items`: 用户数据列表
+> - `items`: 用户数据列表, 为 `User[]` 模型列表
 
 </details>
 
-- 用户登录请求体 (`LoginReq`):
-
 <details>
-<summary><code> LoginReq </code></summary>
+<summary> 用户登录请求模型 <code> LoginReq </code></summary>
 
 ```json
 {
@@ -62,10 +56,8 @@
 
 </details>
 
-- 用户登录返回数据 (`Login`, 其中 `user` 为 `User` 模型):
-
 <details>
-<summary><code> Login </code></summary>
+<summary> 用户登录返回数据模型 <code> Login </code></summary>
 
 ```json
 {
@@ -74,15 +66,13 @@
 }
 ```
 
-> - `user`: 用户模型
+> - `user`: 用户模型 `User`
 > - `token`: *JWT* 字符串, 在前端请求的任意接口中 (或仅在需要身份验证的接口中), 均增加 `Authorization: "Bearer header.payload.signature"` 请求头
 
 </details>
 
-- 错误 (Err):
-
 <details>
-<summary><code> Err </code></summary>
+<summary> 错误模型 <code> Err </code></summary>
 
 ```json
 {
@@ -96,13 +86,30 @@
 
 </details>
 
+<details>
+<summary> 字形信息 <code> Form </code> </summary>
+
+```json
+{
+	"unicode": 1,
+	"name": "name",
+	"default_type": 0,
+	"gf0014_id": 0,
+	"component": "",
+	"compound": "",
+	"slice": "",
+}
+```
+
+</details>
+
 ## API
 
 - 所有接口出错后统一返回 `Err` 模型, 根据错误类型, 状态码可能为 `200`, `4xx` 或 `5xx`
 - 登录 *API*:
 	- `POST /login`: 登录, 传入 `LoginReq` 模型, 返回 `Login` 模型
 - 用户 *API*:
-	- `GET /users?page=1&size=20`: 查询用户列表, 返回 `UserList` 模型
+	- `GET /users?page=1&size=20`: 查询用户列表, 返回 `DataList<User>` 模型
 	- `GET /users/:id`: 查询用户信息, 返回 `User` 模型
 	- `POST /users`: 新增用户, 传入 `User` 模型
 		- 需要 `Authorization` 请求头
@@ -113,3 +120,21 @@
 	- `PUT /users/:id`: 更新用户, 传入 `User` 模型
 		- 需要 `Authorization` 请求头
 		- 当修改的用户与当前登录用户不一致时, 需要管理员身份
+- 字形管理 *API*
+	- `GET /form?page=1&size=20`, 返回 `DataList<Form>`
+	- `GET /form/all`, 查询所有字形数据
+		- 原 `GET /form` 接口
+	- `GET /form/:unicode`: 查询字形信息, 返回 `Form`
+	- `POST /form`: 新增字形数据, 传入 `Form` 模型
+		- 需要 `Authorization` 请求头
+		- 需要管理员身份
+	- `POST /form/batch`: 批量添加字形数据
+		- 原 `POST /form` 接口
+		- 需要 `Authorization` 请求头
+		- 需要管理员身份
+	- `DELETE /form/:unicode`: 删除字形数据
+		- 需要 `Authorization` 请求头
+		- 需要管理员身份
+	- `PUT /form/:unicode`: 更新字形数据, 传入 `Form` 模型
+		- 需要 `Authorization` 请求头
+		- 需要管理员身份

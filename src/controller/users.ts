@@ -1,7 +1,8 @@
 import { IRequest } from 'itty-router';
 import { Env } from '../dto/context';
 import { Err, ErrCode, Ok, Result } from '../error/error';
-import { User, UserList, UserLogin } from '../dto/users';
+import { User, UserLogin } from '../dto/users';
+import { DataList } from '../dto/list';
 import { loadString } from '../dto/load';
 import { UserModel } from '../model/users';
 import { Claims } from '../dto/jwt';
@@ -53,8 +54,8 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 	return newHash === hash;
 }
 
-/** GET:/api/users?page=1&size=20 */
-export async function List(request: IRequest, env: Env): Promise<Result<UserList>> {
+/** GET:/users?page=1&size=20 */
+export async function List(request: IRequest, env: Env): Promise<Result<DataList<User>>> {
 	// 第 `page` 页, 每页 `size` 条
 	const { page, size } = request.query;
 
@@ -64,7 +65,7 @@ export async function List(request: IRequest, env: Env): Promise<Result<UserList
 		return result as Err;
 	}
 
-	var userList = new UserList();
+	var userList = new DataList<User>();
 	userList.total = result;
 	userList.page = parseInt(loadString(page)) || 1;
 	userList.size = parseInt(loadString(size)) || 20;
@@ -82,7 +83,7 @@ export async function List(request: IRequest, env: Env): Promise<Result<UserList
 	return userList;
 }
 
-/** GET:/api/users/:id */
+/** GET:/users/:id */
 export async function Info(request: IRequest, env: Env): Promise<Result<User>> {
 	const userId = request.params['id'];
 
@@ -97,7 +98,7 @@ export async function Info(request: IRequest, env: Env): Promise<Result<User>> {
 	return userFromModel(result);
 }
 
-/** POST:/api/users */
+/** POST:/users */
 export async function Create(request: IRequest, env: Env): Promise<Result<boolean>> {
 	var args: any = {};
 	try {
@@ -121,7 +122,6 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 	if (!Ok(exist)) {
 		return exist as Err;
 	}
-	// TODO: 需要确保这个 if-then 的原子性
 	if (exist) {
 		return new Err(ErrCode.RecordExists, '用户已存在');
 	}
@@ -129,7 +129,7 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 	return await UserModel.create(env, userModel);
 }
 
-/** DELETE:/api/users/:id */
+/** DELETE:/users/:id */
 export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
 	const userId = request.params['id'];
 	if (!userId) {
@@ -144,7 +144,7 @@ export async function Delete(request: IRequest, env: Env): Promise<Result<boolea
 	return await UserModel.delete(env, userId);
 }
 
-/** PUT:/api/users/:id */
+/** PUT:/users/:id */
 export async function Update(request: IRequest, env: Env): Promise<Result<boolean>> {
 	const userId = request.params['id'];
 	if (!userId) {
@@ -187,7 +187,7 @@ export async function Update(request: IRequest, env: Env): Promise<Result<boolea
 	return await UserModel.update(env, userModel);
 }
 
-/** POST:/api/login */
+/** POST:/login */
 export async function Login(request: IRequest, env: Env): Promise<Result<UserLogin>> {
 	var args: any = {};
 	try {

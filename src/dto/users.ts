@@ -23,17 +23,6 @@ export class User {
 	state: UserState = 0;
 }
 
-export class UserList {
-	/** 库中用户记录总数 */
-	total: number = 0;
-	/** 页码 */
-	page: number = 0;
-	/** 每页记录数 */
-	size: number = 0;
-	/** 查询的用户数据列表 */
-	items: User[] = [];
-}
-
 export class UserLogin {
 	user: User;
 	token: string;
