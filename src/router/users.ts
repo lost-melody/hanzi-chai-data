@@ -5,6 +5,6 @@ import * as users from '../controller/users';
 export const routerUsers = Router({ base: '/users' })
 	.get('/', users.List)
 	.get('/:id', users.Info)
-	.post('/', authorizedUser, authorizedAdmin, users.Create)
+	.post('/', users.Create)
 	.delete('/:id', authorizedUser, authorizedAdmin, users.Delete)
 	.put('/:id', authorizedUser, users.Delete);

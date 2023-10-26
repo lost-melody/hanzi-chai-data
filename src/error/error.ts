@@ -1,12 +1,12 @@
 /** 通用错误结构定义 */
 export class Err {
 	/** 错误码: `/^[A-Z]{2,5}-[0-9]{8}$/` */
-	code: string;
+	err: string;
 	/** 错误信息 */
 	msg: string;
 
 	constructor(code?: string, msg?: string) {
-		this.code = code || ErrCode.UnknownInnerError;
+		this.err = code || ErrCode.UnknownInnerError;
 		this.msg = msg || '未知内部错误';
 	}
 }
