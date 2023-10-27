@@ -1,6 +1,7 @@
 export enum UserRole {
 	Normal = 0,
 	Admin = 1,
+	Super = 2,
 }
 
 export enum UserState {

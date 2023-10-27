@@ -1,5 +1,5 @@
 import { Router } from 'itty-router';
-import { authorizedUser, authorizedAdmin } from '../middleware/jwt';
+import { authorizedUser, authorizedAdmin, authorizedSuper } from '../middleware/jwt';
 import * as users from '../controller/users';
 
 export const routerUsers = Router({ base: '/users' })
@@ -7,4 +7,6 @@ export const routerUsers = Router({ base: '/users' })
 	.get('/:id', users.Info)
 	.post('/', users.Create)
 	.delete('/:id', authorizedUser, authorizedAdmin, users.Delete)
-	.put('/:id', authorizedUser, users.Delete);
+	.put('/:id', authorizedUser, users.Delete)
+	.put('/:id/promote', authorizedUser, authorizedSuper, users.Promote)
+	.put('/:id/disable', authorizedUser, authorizedSuper, users.Disable);

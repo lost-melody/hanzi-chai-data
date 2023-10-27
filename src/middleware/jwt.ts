@@ -37,7 +37,18 @@ export async function authorizedUser(request: IRequest, env: Env): Promise<any> 
 export async function authorizedAdmin(request: IRequest, env: Env): Promise<any> {
 	// 从上下文中取出用户ID, 并验证管理员身份
 	const userModel = await UserModel.byId(env, env.UserId);
-	if (!Ok(userModel) || userModel.role !== UserRole.Admin) {
+	if (!Ok(userModel) || userModel.role === UserRole.Normal) {
+		return error(403, new Err(ErrCode.PermissionDenied, '权限不足'));
+	}
+
+	return;
+}
+
+/** 超级管理员身份认证. **注意**: 必须有前置身份认证 */
+export async function authorizedSuper(request: IRequest, env: Env): Promise<any> {
+	// 从上下文中取出用户ID, 并验证管理员身份
+	const userModel = await UserModel.byId(env, env.UserId);
+	if (!Ok(userModel) || userModel.role !== UserRole.Super) {
 		return error(403, new Err(ErrCode.PermissionDenied, '权限不足'));
 	}
 

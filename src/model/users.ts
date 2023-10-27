@@ -126,4 +126,26 @@ export class UserModel {
 		}
 		return true;
 	}
+
+	/** 修改用户管理员级别 */
+	public static async promote(env: Env, id: string, role: number): Promise<Result<boolean>> {
+		try {
+			await env.CHAI.prepare(`UPDATE ${tableUsers} SET role=? WHERE id=?`).bind(role, id).run();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataUpdateFailed, '数据更新失败');
+		}
+		return true;
+	}
+
+	/** 修改用户停用状态 */
+	public static async disable(env: Env, id: string, state: number): Promise<Result<boolean>> {
+		try {
+			await env.CHAI.prepare(`UPDATE ${tableUsers} SET state=? WHERE id=?`).bind(state, id).run();
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataUpdateFailed, '数据更新失败');
+		}
+		return true;
+	}
 }

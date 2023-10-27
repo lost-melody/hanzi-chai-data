@@ -1,7 +1,7 @@
 import { IRequest } from 'itty-router';
 import { Env } from '../dto/context';
 import { Err, ErrCode, Ok, Result } from '../error/error';
-import { User, UserLogin } from '../dto/users';
+import { User, UserLogin, UserRole, UserState } from '../dto/users';
 import { DataList } from '../dto/list';
 import { loadString } from '../dto/load';
 import { UserModel } from '../model/users';
@@ -126,7 +126,19 @@ export async function Create(request: IRequest, env: Env): Promise<Result<boolea
 		return new Err(ErrCode.RecordExists, '用户已存在');
 	}
 
-	return await UserModel.create(env, userModel);
+	// 创建用户
+	const result = await UserModel.create(env, userModel);
+	if (!Ok(result)) {
+		return result as Err;
+	}
+
+	// 首位注册用户, 赋予超级管理员身份
+	const userCount = await UserModel.count(env);
+	if (Ok(userCount) && userCount === 1) {
+		await UserModel.promote(env, userModel.id, UserRole.Super);
+	}
+
+	return result;
 }
 
 /** DELETE:/users/:id */
@@ -187,6 +199,56 @@ export async function Update(request: IRequest, env: Env): Promise<Result<boolea
 	return await UserModel.update(env, userModel);
 }
 
+/** PUT:/users/:id/promote */
+export async function Promote(request: IRequest, env: Env): Promise<Result<boolean>> {
+	const userId = request.params['id'];
+	if (!userId) {
+		return new Err(ErrCode.ParamInvalid, '用户名不正确');
+	}
+	if (userId === env.UserId) {
+		return new Err(ErrCode.ParamInvalid, '不可修改当前登录用户');
+	}
+
+	var newRole: number;
+	try {
+		const body: any = await request.json();
+		if (typeof body.role === 'number') {
+			newRole = body.role;
+		} else {
+			return new Err(ErrCode.ParamInvalid, '用户角色枚举不正确');
+		}
+	} catch (err) {
+		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
+	}
+
+	return await UserModel.promote(env, userId, newRole);
+}
+
+/** PUT:/users/:id/disable */
+export async function Disable(request: IRequest, env: Env): Promise<Result<boolean>> {
+	const userId = request.params['id'];
+	if (!userId) {
+		return new Err(ErrCode.ParamInvalid, '用户名不正确');
+	}
+	if (userId === env.UserId) {
+		return new Err(ErrCode.ParamInvalid, '不可修改当前登录用户');
+	}
+
+	var newState: number;
+	try {
+		const body: any = await request.json();
+		if (typeof body.state === 'number') {
+			newState = body.state;
+		} else {
+			return new Err(ErrCode.ParamInvalid, '用户状态枚举不正确');
+		}
+	} catch (err) {
+		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
+	}
+
+	return await UserModel.disable(env, userId, newState);
+}
+
 /** POST:/login */
 export async function Login(request: IRequest, env: Env): Promise<Result<UserLogin>> {
 	var args: any = {};
@@ -214,6 +276,11 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 	}
 	if (!Ok(userModel)) {
 		return userModel as Err;
+	}
+
+	// 用户被停用, 禁止登录
+	if (userModel.state === UserState.Disabled) {
+		return new Err(ErrCode.PermissionDenied, '用户已停用');
 	}
 
 	if (await verifyPassword(password, userModel.password)) {

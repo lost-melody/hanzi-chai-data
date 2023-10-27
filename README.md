@@ -11,7 +11,9 @@
 	"name": "User Name",
 	"email": "username@email.com",
 	"password": "unhashed",
-	"avatar": "https://url/to/img"
+	"avatar": "https://url/to/img",
+	"role": 2,
+	"state": 1
 }
 ```
 
@@ -19,6 +21,8 @@
 > - `name`: 用户名, 由用户输入, 基本可用任意字符
 > - `email`: 邮箱, 可代替用户ID作登录用, 引入 *SMTP* 后也可作为找回
 > - `password`: 用户密码, 为原始密码经 *MD5* 并 *Base64* 编码后得到
+> - `role`: 用户角色, 分为 `0: 普通; 1: 管理员; 2; 超级管理员`, 只有超级管理员可以修改用户权限
+> - `state`: 用户状态, 有效值 `0: 正常; 1: 停用`, 仅超级管理员可修改, 值为 `1: 停用` 时无法登录
 
 </details>
 
@@ -114,12 +118,19 @@
 	- `POST /users`: 新增用户, 传入 `User` 模型
 		- 需要 `Authorization` 请求头
 		- ~需要管理员身份~, 当前未引入 *SMTP* 服务, 此接口作用户注册用
+		- 当库中没有其他用户时, 首位注册用户自动成为 *超级管理员*
 	- `DELETE /users/:id`: 删除用户
 		- 需要 `Authorization` 请求头
 		- 需要管理员身份
 	- `PUT /users/:id`: 更新用户, 传入 `User` 模型
 		- 需要 `Authorization` 请求头
 		- 当修改的用户与当前登录用户不一致时, 需要管理员身份
+	- `PUT /users/:id/promote`: 修改用户角色, 传入 `{ "role": 0 }`, 可用的用户角色类型为 `0, 1, 2`
+		- 需要 `Authorization` 请求头
+		- 需要 **超级管理员** 身份
+	- `PUT /users/:id/disable`: 停用用户账户, 传入 `{ "state": 0 }`, 可用的状态为 `0, 1`
+		- 需要 `Authorization` 请求头
+		- 需要 **超级管理员** 身份
 - 字形管理 *API*
 	- `GET /form?page=1&size=20`, 返回 `DataList<Form>`
 	- `GET /form/all`, 查询所有字形数据
