@@ -6,4 +6,5 @@
 export interface Env {
 	CHAI: D1Database;
 	UserId: string;
+	JWT_KEY: string;
 }

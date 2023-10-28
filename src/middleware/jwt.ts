@@ -5,8 +5,8 @@ import { UserRole } from '../dto/users';
 import { UserModel } from '../model/users';
 import { Claims } from '../dto/jwt';
 
-async function parseJwt(token: string): Promise<Result<string>> {
-	const claims = await Claims.parse(token);
+async function parseJwt(token: string, env: Env): Promise<Result<string>> {
+	const claims = await Claims.parse(token, env);
 	if (!Ok(claims)) {
 		return new Err(ErrCode.Unauthorized, '用户身份凭证无效');
 	}
@@ -23,7 +23,7 @@ export async function authorizedUser(request: IRequest, env: Env): Promise<any> 
 	}
 
 	// 校验 jwt
-	const userId = await parseJwt(token.replace(/^Bearer /, ''));
+	const userId = await parseJwt(token.replace(/^Bearer /, ''), env);
 	if (!Ok(userId)) {
 		return error(401, userId);
 	}

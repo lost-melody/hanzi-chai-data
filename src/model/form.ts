@@ -41,6 +41,39 @@ export class FormModel {
 		return FormModel.modelFromRecord(res);
 	}
 
+	public static async generateUnicode(env: Env, type: number): Promise<Result<number>> {
+		var res: any[];
+		const breakpoint = [0xe000, 0xe400, 0xe800, 0xf000] as const;
+		const from = breakpoint[type];
+		const to = breakpoint[type + 1];
+		try {
+			const { results } = await env.CHAI.prepare(`SELECT unicode FROM ${tableForm} WHERE unicode >= ? AND unicode < ?`)
+				.bind(from, to)
+				.all();
+			res = results;
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataQueryFailed, '数据查询失败');
+		}
+
+		if (res === null) {
+			return new Err(ErrCode.RecordNotFound, '字形数据不存在');
+		}
+
+		let code = from;
+		for (const { unicode } of res) {
+			if (unicode !== code) {
+				return code;
+			}
+			code += 1;
+		}
+
+		if (code === to) {
+			return new Err(ErrCode.UnknownInnerError, '已达上限，无法继续创建');
+		}
+		return code;
+	}
+
 	public static async exist(env: Env, unicode: number): Promise<Result<boolean>> {
 		var res;
 		try {
@@ -76,7 +109,7 @@ export class FormModel {
 		return results.map((record) => FormModel.modelFromRecord(record));
 	}
 
-	public static async create(env: Env, form: FormModel): Promise<Result<boolean>> {
+	public static async create(env: Env, form: FormModel): Promise<Result<number>> {
 		try {
 			await env.CHAI.prepare(
 				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -87,7 +120,7 @@ export class FormModel {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataCreateFailed, '数据创建失败');
 		}
-		return true;
+		return form.unicode;
 	}
 
 	public static async delete(env: Env, unicode: number): Promise<Result<boolean>> {

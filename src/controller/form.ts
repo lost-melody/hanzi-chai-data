@@ -100,18 +100,23 @@ export async function Info(request: IRequest, env: Env): Promise<Result<Form>> {
 }
 
 /** POST:/form */
-export async function Create(request: IRequest, env: Env): Promise<Result<boolean>> {
+export async function Create(request: IRequest, env: Env): Promise<Result<number>> {
 	var args: any = {};
 	try {
 		const body: any = await request.json();
 		if (body.unicode) {
 			args = body;
+		} else if (body.name && body.default_type !== undefined) {
+			args = body;
+			const unicode = await FormModel.generateUnicode(env, args.default_type);
+			args.unicode = unicode;
 		} else {
 			return new Err(ErrCode.ParamInvalid, 'Unicode不正确');
 		}
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
 	}
+	console.log(args.unicode);
 
 	const formModel = await formToModel(args);
 	if (!Ok(formModel)) {

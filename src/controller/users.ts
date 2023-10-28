@@ -286,7 +286,7 @@ export async function Login(request: IRequest, env: Env): Promise<Result<UserLog
 	if (await verifyPassword(password, userModel.password)) {
 		// 密码正确
 		const user = userFromModel(userModel);
-		const token = await Claims.new(user.id).sign();
+		const token = await Claims.new(user.id).sign(env);
 		// 返回用户信息和 jwt
 		return new UserLogin(user, token);
 	} else {

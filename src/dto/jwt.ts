@@ -3,13 +3,12 @@ import { UnixHour } from '../def/constants';
 import { random } from '../utils/random';
 import { nowUnix } from '../utils/time';
 import { Err, ErrCode, Result } from '../error/error';
+import { Env } from './context';
 
 /** JWT 有效期, 默认 2 小时 */
 const JwtExpires = 2 * UnixHour;
 /** JWT 签名密钥: 应该出现在非公开配置文件中 */
-const JwtKey = Math.round(random(0, 0xffffffff)).toString(16);
 /** JWT 签名公钥: 应该出现在配置文件中 */
-const JwtPubKey = JwtKey;
 
 export class Claims {
 	jti: string = '';
@@ -17,8 +16,8 @@ export class Claims {
 	exp: number = 0;
 	uid: string = '';
 
-	public async sign(key?: string): Promise<string> {
-		return await sign(this, key || JwtKey);
+	public async sign(env: Env): Promise<string> {
+		return await sign(this, env.JWT_KEY);
 	}
 
 	public static new(userId: string, expires?: number): Claims {
@@ -30,9 +29,9 @@ export class Claims {
 		return claims;
 	}
 
-	public static async parse(token: string, key?: string): Promise<Result<Claims>> {
+	public static async parse(token: string, env: Env, key?: string): Promise<Result<Claims>> {
 		try {
-			if (!(await verify(token, key || JwtPubKey))) {
+			if (!(await verify(token, key || env.JWT_KEY))) {
 				return new Err(ErrCode.Unauthorized, 'invalid token');
 			}
 		} catch (err) {

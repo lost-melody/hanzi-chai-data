@@ -1,8 +1,3 @@
-DROP TABLE IF EXISTS repertoire;
-DROP TABLE IF EXISTS form;
-DROP INDEX IF EXISTS idx_users_email;
-DROP TABLE IF EXISTS users;
-
 CREATE TABLE IF NOT EXISTS repertoire (
 	unicode INTEGER PRIMARY KEY,
 	tygf INTEGER,
