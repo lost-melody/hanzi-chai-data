@@ -112,7 +112,7 @@ export class FormModel {
 	public static async create(env: Env, form: FormModel): Promise<Result<number>> {
 		try {
 			await env.CHAI.prepare(
-				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)`
 			)
 				.bind(form.unicode, form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice)
 				.run();
@@ -136,9 +136,9 @@ export class FormModel {
 	public static async update(env: Env, form: FormModel): Promise<Result<boolean>> {
 		try {
 			await env.CHAI.prepare(
-				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=? WHERE unicode=?`,
+				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=? WHERE unicode=?`
 			)
-				.bind(form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice)
+				.bind(form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice, form.unicode)
 				.run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });

@@ -2,7 +2,7 @@ import { createCors, error, Router, json } from 'itty-router';
 import { Env } from './dto/context';
 import { Err, ErrCode } from './error/error';
 import { routerApi } from './router/router';
-const { preflight, corsify } = createCors();
+const { preflight, corsify } = createCors({ methods: ['GET', 'POST', 'PUT', 'DELETE'] });
 
 const router = Router()
 	.all('*', preflight)

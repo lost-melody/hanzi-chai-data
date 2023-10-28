@@ -116,7 +116,6 @@ export async function Create(request: IRequest, env: Env): Promise<Result<number
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
 	}
-	console.log(args.unicode);
 
 	const formModel = await formToModel(args);
 	if (!Ok(formModel)) {
@@ -129,7 +128,7 @@ export async function Create(request: IRequest, env: Env): Promise<Result<number
 		return exist as Err;
 	}
 	if (exist) {
-		return new Err(ErrCode.RecordExists, '记录已存在');
+		return new Err(ErrCode.RecordExists, `${formModel.unicode} 记录已存在`);
 	}
 
 	return await FormModel.create(env, formModel);
