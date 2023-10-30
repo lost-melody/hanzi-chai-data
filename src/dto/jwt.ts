@@ -1,12 +1,12 @@
 import { decode, sign, verify } from '@tsndr/cloudflare-worker-jwt';
-import { UnixHour } from '../def/constants';
+import { UnixDay, UnixHour } from '../def/constants';
 import { random } from '../utils/random';
 import { nowUnix } from '../utils/time';
 import { Err, ErrCode, Result } from '../error/error';
 import { Env } from './context';
 
-/** JWT 有效期, 默认 2 小时 */
-const JwtExpires = 2 * UnixHour;
+/** JWT 有效期, 默认一周 */
+const JwtExpires = 7 * UnixDay;
 /** JWT 签名密钥: 应该出现在非公开配置文件中 */
 /** JWT 签名公钥: 应该出现在配置文件中 */
 

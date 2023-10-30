@@ -14,6 +14,7 @@
 		"wrangler": "^3.14.0"
 	},
 	"dependencies": {
+		"@cfworker/json-schema": "^1.12.7",
 		"itty-cors": "^0.3.6",
 		"itty-router": "^4.0.23"
 	}

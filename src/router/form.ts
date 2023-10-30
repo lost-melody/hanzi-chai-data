@@ -5,8 +5,9 @@ import { authorizedAdmin, authorizedUser } from '../middleware/jwt';
 export const routerForm = Router({ base: '/form' })
 	.get('/', form.List)
 	.get('/all', form.ListAll)
-	.get('/:unicode', form.Info)
+	.get('/:unicode', form.validateUnicode, form.Info)
 	.post('/batch', authorizedUser, authorizedAdmin, form.CreateBatch)
-	.post('/', authorizedUser, authorizedAdmin, form.Create)
-	.delete('/:unicode', authorizedUser, authorizedAdmin, form.Delete)
-	.put('/:unicode', authorizedUser, authorizedAdmin, form.Update);
+	.post('/', authorizedUser, authorizedAdmin, form.CreateWithoutUnicode)
+	.post('/:unicode', authorizedUser, authorizedAdmin, form.validateUnicode, form.checkNotExist, form.Create)
+	.put('/:unicode', authorizedUser, authorizedAdmin, form.validateUnicode, form.checkExist, form.Update)
+	.delete('/:unicode', authorizedUser, authorizedAdmin, form.validateUnicode, form.Delete);

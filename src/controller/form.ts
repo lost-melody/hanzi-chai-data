@@ -5,6 +5,11 @@ import { Form } from '../dto/form';
 import { DataList } from '../dto/list';
 import { FormModel } from '../model/form';
 import { loadNumber, loadString } from '../dto/load';
+import { Schema, Validator } from '@cfworker/json-schema';
+import schema from '../../schema.json';
+
+const validateGlyph = new Validator(schema.definitions.Glyph as Schema);
+const validateNamed = new Validator(schema.definitions.NamedGlyph as Schema);
 
 function formFromModel(formModel: FormModel): Form {
 	var form = new Form();
@@ -18,38 +23,72 @@ function formFromModel(formModel: FormModel): Form {
 	return form;
 }
 
-async function formToModel(form: any): Promise<Result<FormModel>> {
-	var formModel = new FormModel();
-	formModel.unicode = loadNumber(form.unicode);
-	formModel.name = loadString(form.name);
-	formModel.default_type = loadNumber(form.default_type);
-	formModel.gf0014_id = loadNumber(form.gf0014_id);
-	formModel.component = loadString(form.component);
-	formModel.compound = loadString(form.compound);
-	formModel.slice = loadString(form.slice);
-	if (formModel.unicode) {
-		return formModel;
-	} else {
-		return new Err(ErrCode.ParamInvalid, '参数格式不正确');
+function glyphFromGlyphModel(model: GlyphModel): Glyph {
+	return {
+		...model,
+		component: model.component ? JSON.parse(model.component) : undefined,
+		slice: model.slice ? JSON.parse(model.slice) : undefined,
+		compound: model.compound ? JSON.parse(model.compound) : undefined,
+	};
+}
+
+function glyphToGlyphModel(glyph: Glyph): GlyphModel {
+	return {
+		...glyph,
+		component: glyph.component ? JSON.stringify(glyph.component) : null,
+		slice: glyph.slice ? JSON.stringify(glyph.slice) : null,
+		compound: glyph.compound ? JSON.stringify(glyph.compound) : null,
+	};
+}
+
+export async function validateUnicode(request: IRequest, env: Env) {
+	const unicode = parseInt(request.params['unicode']);
+	if (!Number.isInteger(unicode)) {
+		// TODO: 增加具体范围
+		return new Err(ErrCode.ParamInvalid, 'Unicode不正确');
+	}
+	env.unicode = unicode;
+}
+
+export async function checkExist(request: IRequest, env: Env) {
+	// 记录是否已存在
+	let exist = await FormModel.exist(env);
+	if (!Ok(exist)) {
+		return exist;
+	}
+	if (!exist) {
+		return new Err(ErrCode.RecordExists, `${env.unicode} 记录不存在`);
+	}
+
+}
+
+// 记录是否已存在
+export async function checkNotExist(request: IRequest, env: Env) {
+	let exist = await FormModel.exist(env);
+	if (!Ok(exist)) {
+		return exist;
+	}
+	if (exist) {
+		return new Err(ErrCode.RecordExists, `${env.unicode} 记录已存在`);
 	}
 }
 
 /** GET:/form/all */
-export async function ListAll(request: Request, env: Env) {
+export async function ListAll(request: Request, env: Env): Promise<Result<Glyph[]>> {
 	const { results } = await env.CHAI.prepare('SELECT * FROM form').all();
-	return results;
+	return (results as unknown as GlyphModel[]).map(glyphFromGlyphModel);
 }
 
 /** POST:/form/batch */
 export async function CreateBatch(request: Request, env: Env) {
 	const data: any[] = await request.json();
 	const stmt = env.CHAI.prepare(
-		'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)',
+		'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)'
 	);
 	const result = await env.CHAI.batch(
 		data.map(({ unicode, name, default_type, gf0014_id, component, compound, slice }) => {
 			return stmt.bind(unicode, name, default_type, gf0014_id, component, compound, slice);
-		}),
+		})
 	);
 	return result;
 }
@@ -84,104 +123,70 @@ export async function List(request: IRequest, env: Env): Promise<Result<DataList
 }
 
 /** GET:/form/:unicode */
-export async function Info(request: IRequest, env: Env): Promise<Result<Form>> {
-	const unicode = parseInt(request.params['unicode']);
-	if (!unicode) {
-		return new Err(ErrCode.ParamInvalid, 'Unicode不正确');
+export async function Info(request: IRequest, env: Env): Promise<Result<Glyph>> {
+	const glyphModel = await FormModel.byUnicode(env);
+	if (!Ok(glyphModel)) {
+		return glyphModel as Err;
 	}
 
-	const formModel = await FormModel.byUnicode(env, unicode);
-	if (!Ok(formModel)) {
-		return formModel as Err;
-	}
-
-	const form = formFromModel(formModel);
-	return form;
+	return glyphFromGlyphModel(glyphModel);
 }
 
-/** POST:/form */
+/** POST:/form/:unicode */
 export async function Create(request: IRequest, env: Env): Promise<Result<number>> {
-	var args: any = {};
+	let glyph: unknown;
 	try {
-		const body: any = await request.json();
-		if (body.unicode) {
-			args = body;
-		} else if (body.name && body.default_type !== undefined) {
-			args = body;
-			const unicode = await FormModel.generateUnicode(env, args.default_type);
-			args.unicode = unicode;
-		} else {
-			return new Err(ErrCode.ParamInvalid, 'Unicode不正确');
-		}
+		glyph = await request.json();
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
 	}
 
-	const formModel = await formToModel(args);
-	if (!Ok(formModel)) {
-		return formModel as Err;
+	if (!validateGlyph.validate(glyph)) {
+		return new Err(ErrCode.ParamInvalid, '请求不合法');
 	}
 
-	// 记录是否已存在
-	var exist = await FormModel.exist(env, formModel.unicode);
-	if (!Ok(exist)) {
-		return exist as Err;
-	}
-	if (exist) {
-		return new Err(ErrCode.RecordExists, `${formModel.unicode} 记录已存在`);
+	return await FormModel.create(env, glyphToGlyphModel(glyph as Glyph));
+}
+
+/** POST:/form */
+export async function CreateWithoutUnicode(request: IRequest, env: Env): Promise<Result<number>> {
+	let glyph: unknown;
+	try {
+		glyph = await request.json();
+	} catch (err) {
+		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
 	}
 
-	return await FormModel.create(env, formModel);
+	if (!validateNamed.validate(glyph)) {
+		return new Err(ErrCode.ParamInvalid, '请求不合法');
+	}
+	const unicode = await FormModel.generateUnicode(env, (glyph as Glyph).default_type);
+
+	if (!Ok(unicode)) {
+		return unicode;
+	}
+
+	return await FormModel.create(env, glyphToGlyphModel({ ...(glyph as Glyph), unicode }));
 }
 
 /** DELETE:/form/:unicode */
 export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
-	const unicode = parseInt(request.params['unicode']);
-	if (!unicode) {
-		return new Err(ErrCode.ParamInvalid, 'Unicode不正确');
-	}
-
-	const formModel = await FormModel.byUnicode(env, unicode);
-	if (!Ok(formModel)) {
-		return formModel as Err;
-	}
-
-	return await FormModel.delete(env, unicode);
+	return await FormModel.delete(env);
 }
 
 /** PUT:/form/:unicode */
 export async function Update(request: IRequest, env: Env): Promise<Result<boolean>> {
-	const unicode = parseInt(request.params['unicode']);
-	if (!unicode) {
-		return new Err(ErrCode.ParamInvalid, 'Unicode不正确');
-	}
-
-	// 记录存在
-	const formModel = await FormModel.byUnicode(env, unicode);
-	if (!Ok(formModel)) {
-		return formModel as Err;
-	}
-
 	// 请求参数
-	var args: any = {};
+	let glyph: unknown;
 	try {
-		args = await request.json();
+		glyph = await request.json();
 	} catch (err) {
 		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
 	}
 
-	// 更新
-	var newModel = await formToModel(args);
-	if (!Ok(newModel)) {
-		return newModel as Err;
+	if (!validateGlyph.validate(glyph)) {
+		return new Err(ErrCode.ParamInvalid, '请求不合法');
 	}
 
-	newModel.unicode = unicode;
-	newModel.name = newModel.name || formModel.name;
-	newModel.default_type = newModel.default_type || formModel.default_type;
-	newModel.gf0014_id = newModel.gf0014_id || formModel.gf0014_id;
-	newModel.component = newModel.component || formModel.component;
-	newModel.compound = newModel.compound || formModel.compound;
-	newModel.slice = newModel.slice || formModel.slice;
-	return await FormModel.update(env, formModel);
+	return await FormModel.update(env, glyphToGlyphModel(glyph as Glyph));
 }

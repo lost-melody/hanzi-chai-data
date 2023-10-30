@@ -25,10 +25,10 @@ export class FormModel {
 		return formModel;
 	}
 
-	public static async byUnicode(env: Env, unicode: number): Promise<Result<FormModel>> {
-		var res;
+	public static async byUnicode(env: Env): Promise<Result<GlyphModel>> {
+		let res: GlyphModel | null;
 		try {
-			res = await env.CHAI.prepare(`SELECT * FROM ${tableForm} WHERE unicode=? LIMIT 1`).bind(unicode).first();
+			res = await env.CHAI.prepare(`SELECT * FROM ${tableForm} WHERE unicode=? LIMIT 1`).bind(env.unicode).first();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataQueryFailed, '数据查询失败');
@@ -38,7 +38,7 @@ export class FormModel {
 			return new Err(ErrCode.RecordNotFound, '字形数据不存在');
 		}
 
-		return FormModel.modelFromRecord(res);
+		return res;
 	}
 
 	public static async generateUnicode(env: Env, type: number): Promise<Result<number>> {
@@ -74,10 +74,10 @@ export class FormModel {
 		return code;
 	}
 
-	public static async exist(env: Env, unicode: number): Promise<Result<boolean>> {
+	public static async exist(env: Env): Promise<Result<boolean>> {
 		var res;
 		try {
-			res = await env.CHAI.prepare(`SELECT COUNT(0) total FROM ${tableForm} WHERE unicode=?`).bind(unicode).first('total');
+			res = await env.CHAI.prepare(`SELECT COUNT(0) total FROM ${tableForm} WHERE unicode=?`).bind(env.unicode).first('total');
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataQueryFailed, '数据查询失败');
@@ -109,7 +109,7 @@ export class FormModel {
 		return results.map((record) => FormModel.modelFromRecord(record));
 	}
 
-	public static async create(env: Env, form: FormModel): Promise<Result<number>> {
+	public static async create(env: Env, form: GlyphModel): Promise<Result<number>> {
 		try {
 			await env.CHAI.prepare(
 				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -123,9 +123,9 @@ export class FormModel {
 		return form.unicode;
 	}
 
-	public static async delete(env: Env, unicode: number): Promise<Result<boolean>> {
+	public static async delete(env: Env): Promise<Result<boolean>> {
 		try {
-			await env.CHAI.prepare(`DELETE FROM ${tableForm} WHERE unicode=?`).bind(unicode).run();
+			await env.CHAI.prepare(`DELETE FROM ${tableForm} WHERE unicode=?`).bind(env.unicode).run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataDeleteFailed, '数据删除失败');
@@ -133,7 +133,7 @@ export class FormModel {
 		return true;
 	}
 
-	public static async update(env: Env, form: FormModel): Promise<Result<boolean>> {
+	public static async update(env: Env, form: GlyphModel): Promise<Result<boolean>> {
 		try {
 			await env.CHAI.prepare(
 				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=? WHERE unicode=?`
