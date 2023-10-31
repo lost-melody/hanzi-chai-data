@@ -146,4 +146,24 @@ export class FormModel {
 		}
 		return true;
 	}
+
+	public static async mutate(env: Env, unicode_new: number): Promise<Result<boolean>> {
+		try {
+			await env.CHAI.prepare(`UPDATE ${tableForm} SET unicode = ? where unicode = ?`).bind(unicode_new, env.unicode).run();
+			await env.CHAI.prepare(`UPDATE ${tableForm} SET slice = json_replace(slice, '$.source', ?) where json_extract(slice, '$.source') = ?`)
+				.bind(unicode_new, env.unicode)
+				.run();
+			for (const index of [0, 1]) {
+				await env.CHAI.prepare(
+					`UPDATE ${tableForm} SET compound = json_replace(compound, '$.operandList[${index}]', ?) where json_extract(compound, '$.operandList[${index}]') = ?`
+				)
+					.bind(unicode_new, env.unicode)
+					.run();
+			}
+		} catch (err) {
+			console.warn({ message: (err as Error).message });
+			return new Err(ErrCode.DataUpdateFailed, '数据更新失败');
+		}
+		return true;
+	}
 }

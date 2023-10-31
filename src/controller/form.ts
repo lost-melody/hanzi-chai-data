@@ -23,12 +23,21 @@ function formFromModel(formModel: FormModel): Form {
 	return form;
 }
 
+const charToCode = (char: string) => char.codePointAt(0)!;
+const codeToChar = (code: number) => String.fromCodePoint(code);
+
+const sliceForward = (c: any) => ({ ...c, source: codeToChar(c.source) });
+const sliceReverse = (c: any) => ({ ...c, source: charToCode(c.source) });
+
+const compoundForward = (c: any) => ({ ...c, operandList: c.operandList.map(codeToChar) });
+const compoundReverse = (c: any) => ({ ...c, operandList: c.operandList.map(charToCode) });
+
 function glyphFromGlyphModel(model: GlyphModel): Glyph {
 	return {
 		...model,
 		component: model.component ? JSON.parse(model.component) : undefined,
-		slice: model.slice ? JSON.parse(model.slice) : undefined,
-		compound: model.compound ? JSON.parse(model.compound) : undefined,
+		slice: model.slice ? sliceForward(JSON.parse(model.slice)) : undefined,
+		compound: model.compound ? compoundForward(JSON.parse(model.compound)) : undefined,
 	};
 }
 
@@ -36,8 +45,8 @@ function glyphToGlyphModel(glyph: Glyph): GlyphModel {
 	return {
 		...glyph,
 		component: glyph.component ? JSON.stringify(glyph.component) : null,
-		slice: glyph.slice ? JSON.stringify(glyph.slice) : null,
-		compound: glyph.compound ? JSON.stringify(glyph.compound) : null,
+		slice: glyph.slice ? JSON.stringify(sliceReverse(glyph.slice)) : null,
+		compound: glyph.compound ? JSON.stringify(compoundReverse(glyph.compound)) : null,
 	};
 }
 
@@ -59,7 +68,6 @@ export async function checkExist(request: IRequest, env: Env) {
 	if (!exist) {
 		return new Err(ErrCode.RecordExists, `${env.unicode} 记录不存在`);
 	}
-
 }
 
 // 记录是否已存在
@@ -171,6 +179,16 @@ export async function CreateWithoutUnicode(request: IRequest, env: Env): Promise
 
 /** DELETE:/form/:unicode */
 export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
+	const { results: s_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(slice, "$.source") = ?').bind(env.unicode).all();
+	const { results: c1_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(compound, "$.operandList[0]") = ?')
+		.bind(env.unicode)
+		.all();
+	const { results: c2_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(compound, "$.operandList[1]") = ?')
+		.bind(env.unicode)
+		.all();
+	if (s_ref.length || c1_ref.length || c2_ref.length) {
+		return new Err(ErrCode.PermissionDenied, '无法删除，因为还有别的字形引用它');
+	}
 	return await FormModel.delete(env);
 }
 
@@ -189,4 +207,21 @@ export async function Update(request: IRequest, env: Env): Promise<Result<boolea
 	}
 
 	return await FormModel.update(env, glyphToGlyphModel(glyph as Glyph));
+}
+
+/** PATCH:/form/:unicode */
+export async function Mutate(request: IRequest, env: Env): Promise<Result<boolean>> {
+	// 请求参数
+	let unicode_new: unknown;
+	try {
+		unicode_new = await request.json();
+	} catch (err) {
+		return new Err(ErrCode.UnknownInnerError, (err as Error).message);
+	}
+
+	if (typeof unicode_new !== 'number' || !Number.isInteger(unicode_new)) {
+		return new Err(ErrCode.ParamInvalid, "不是整数");
+	}
+
+	return await FormModel.mutate(env, unicode_new);
 }
