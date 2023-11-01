@@ -180,13 +180,14 @@ export async function CreateWithoutUnicode(request: IRequest, env: Env): Promise
 /** DELETE:/form/:unicode */
 export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
 	const { results: s_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(slice, "$.source") = ?').bind(env.unicode).all();
-	const { results: c1_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(compound, "$.operandList[0]") = ?')
-		.bind(env.unicode)
-		.all();
-	const { results: c2_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(compound, "$.operandList[1]") = ?')
-		.bind(env.unicode)
-		.all();
-	if (s_ref.length || c1_ref.length || c2_ref.length) {
+	const c_refs = [];
+	for (const index of [0, 1, 2]) {
+		const { results: c_ref } = await env.CHAI.prepare(`SELECT * FROM form WHERE json_extract(compound, "$.operandList[${index}]") = ?`)
+			.bind(env.unicode)
+			.all();
+		c_refs.push(c_ref);
+	}
+	if (s_ref.length > 0 || c_refs.some(x => x.length > 0)) {
 		return new Err(ErrCode.PermissionDenied, '无法删除，因为还有别的字形引用它');
 	}
 	return await FormModel.delete(env);
