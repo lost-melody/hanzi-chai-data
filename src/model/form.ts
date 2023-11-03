@@ -153,7 +153,7 @@ export class FormModel {
 			await env.CHAI.prepare(`UPDATE ${tableForm} SET slice = json_replace(slice, '$.source', ?) where json_extract(slice, '$.source') = ?`)
 				.bind(unicode_new, unicode)
 				.run();
-			for (const index of [0, 1]) {
+			for (const index of [0, 1, 2]) {
 				await env.CHAI.prepare(
 					`UPDATE ${tableForm} SET compound = json_replace(compound, '$.operandList[${index}]', ?) where json_extract(compound, '$.operandList[${index}]') = ?`,
 				)
