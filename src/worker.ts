@@ -1,5 +1,5 @@
 import { createCors, error, Router, json } from 'itty-router';
-import { Env } from './dto/context';
+import { Ctx, Env } from './dto/context';
 import { Err, ErrCode } from './error/error';
 import { routerApi } from './router/router';
 const { preflight, corsify } = createCors({ methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
@@ -25,7 +25,20 @@ const router = Router()
 */
 
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
-		return await router.handle(request, env).then(json).then(corsify);
+	async fetch(request: Request, env: Env, ctx: Ctx): Promise<Response> {
+		// 附加 Response Headers
+		ctx.extraHeaders = [];
+
+		return await router
+			.handle(request, env, ctx)
+			.then(json)
+			.then((response) => {
+				// 注入附加响应头
+				for (let [key, value] of ctx.extraHeaders) {
+					response.headers.set(key, value);
+				}
+				return response;
+			})
+			.then(corsify);
 	},
 };

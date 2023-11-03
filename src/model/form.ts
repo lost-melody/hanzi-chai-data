@@ -25,10 +25,10 @@ export class FormModel {
 		return formModel;
 	}
 
-	public static async byUnicode(env: Env): Promise<Result<GlyphModel>> {
+	public static async byUnicode(env: Env, unicode: number): Promise<Result<GlyphModel>> {
 		let res: GlyphModel | null;
 		try {
-			res = await env.CHAI.prepare(`SELECT * FROM ${tableForm} WHERE unicode=? LIMIT 1`).bind(env.unicode).first();
+			res = await env.CHAI.prepare(`SELECT * FROM ${tableForm} WHERE unicode=? LIMIT 1`).bind(unicode).first();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataQueryFailed, '数据查询失败');
@@ -74,10 +74,10 @@ export class FormModel {
 		return code;
 	}
 
-	public static async exist(env: Env): Promise<Result<boolean>> {
+	public static async exist(env: Env, unicode: number): Promise<Result<boolean>> {
 		var res;
 		try {
-			res = await env.CHAI.prepare(`SELECT COUNT(0) total FROM ${tableForm} WHERE unicode=?`).bind(env.unicode).first('total');
+			res = await env.CHAI.prepare(`SELECT COUNT(0) total FROM ${tableForm} WHERE unicode=?`).bind(unicode).first('total');
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataQueryFailed, '数据查询失败');
@@ -112,7 +112,7 @@ export class FormModel {
 	public static async create(env: Env, form: GlyphModel): Promise<Result<number>> {
 		try {
 			await env.CHAI.prepare(
-				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)`
+				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			)
 				.bind(form.unicode, form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice)
 				.run();
@@ -123,9 +123,9 @@ export class FormModel {
 		return form.unicode;
 	}
 
-	public static async delete(env: Env): Promise<Result<boolean>> {
+	public static async delete(env: Env, unicode: number): Promise<Result<boolean>> {
 		try {
-			await env.CHAI.prepare(`DELETE FROM ${tableForm} WHERE unicode=?`).bind(env.unicode).run();
+			await env.CHAI.prepare(`DELETE FROM ${tableForm} WHERE unicode=?`).bind(unicode).run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataDeleteFailed, '数据删除失败');
@@ -136,7 +136,7 @@ export class FormModel {
 	public static async update(env: Env, form: GlyphModel): Promise<Result<boolean>> {
 		try {
 			await env.CHAI.prepare(
-				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=? WHERE unicode=?`
+				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=? WHERE unicode=?`,
 			)
 				.bind(form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice, form.unicode)
 				.run();
@@ -147,17 +147,17 @@ export class FormModel {
 		return true;
 	}
 
-	public static async mutate(env: Env, unicode_new: number): Promise<Result<boolean>> {
+	public static async mutate(env: Env, unicode: number, unicode_new: number): Promise<Result<boolean>> {
 		try {
-			await env.CHAI.prepare(`UPDATE ${tableForm} SET unicode = ? where unicode = ?`).bind(unicode_new, env.unicode).run();
+			await env.CHAI.prepare(`UPDATE ${tableForm} SET unicode = ? where unicode = ?`).bind(unicode_new, unicode).run();
 			await env.CHAI.prepare(`UPDATE ${tableForm} SET slice = json_replace(slice, '$.source', ?) where json_extract(slice, '$.source') = ?`)
-				.bind(unicode_new, env.unicode)
+				.bind(unicode_new, unicode)
 				.run();
 			for (const index of [0, 1]) {
 				await env.CHAI.prepare(
-					`UPDATE ${tableForm} SET compound = json_replace(compound, '$.operandList[${index}]', ?) where json_extract(compound, '$.operandList[${index}]') = ?`
+					`UPDATE ${tableForm} SET compound = json_replace(compound, '$.operandList[${index}]', ?) where json_extract(compound, '$.operandList[${index}]') = ?`,
 				)
-					.bind(unicode_new, env.unicode)
+					.bind(unicode_new, unicode)
 					.run();
 			}
 		} catch (err) {

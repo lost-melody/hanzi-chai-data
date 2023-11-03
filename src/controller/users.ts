@@ -1,5 +1,5 @@
 import { IRequest } from 'itty-router';
-import { Env } from '../dto/context';
+import { Ctx, Env } from '../dto/context';
 import { Err, ErrCode, Ok, Result } from '../error/error';
 import { User, UserLogin, UserRole, UserState } from '../dto/users';
 import { DataList } from '../dto/list';
@@ -157,15 +157,15 @@ export async function Delete(request: IRequest, env: Env): Promise<Result<boolea
 }
 
 /** PUT:/users/:id */
-export async function Update(request: IRequest, env: Env): Promise<Result<boolean>> {
+export async function Update(request: IRequest, env: Env, ctx: Ctx): Promise<Result<boolean>> {
 	const userId = request.params['id'];
 	if (!userId) {
 		return new Err(ErrCode.ParamInvalid, '用户名不正确');
 	}
 
-	if (userId !== env.UserId) {
+	if (userId !== ctx.UserId) {
 		// 修改他人信息, 要求管理员
-		const auth = await authorizedAdmin(request, env);
+		const auth = await authorizedAdmin(request, env, ctx);
 		if (!Ok(auth)) {
 			return auth as Err;
 		}
@@ -200,12 +200,12 @@ export async function Update(request: IRequest, env: Env): Promise<Result<boolea
 }
 
 /** PUT:/users/:id/promote */
-export async function Promote(request: IRequest, env: Env): Promise<Result<boolean>> {
+export async function Promote(request: IRequest, env: Env, ctx: Ctx): Promise<Result<boolean>> {
 	const userId = request.params['id'];
 	if (!userId) {
 		return new Err(ErrCode.ParamInvalid, '用户名不正确');
 	}
-	if (userId === env.UserId) {
+	if (userId === ctx.UserId) {
 		return new Err(ErrCode.ParamInvalid, '不可修改当前登录用户');
 	}
 
@@ -225,12 +225,12 @@ export async function Promote(request: IRequest, env: Env): Promise<Result<boole
 }
 
 /** PUT:/users/:id/disable */
-export async function Disable(request: IRequest, env: Env): Promise<Result<boolean>> {
+export async function Disable(request: IRequest, env: Env, ctx: Ctx): Promise<Result<boolean>> {
 	const userId = request.params['id'];
 	if (!userId) {
 		return new Err(ErrCode.ParamInvalid, '用户名不正确');
 	}
-	if (userId === env.UserId) {
+	if (userId === ctx.UserId) {
 		return new Err(ErrCode.ParamInvalid, '不可修改当前登录用户');
 	}
 
