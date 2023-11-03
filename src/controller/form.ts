@@ -1,5 +1,5 @@
 import { IRequest } from 'itty-router';
-import { Env } from '../dto/context';
+import { Ctx, Env } from '../dto/context';
 import { Err, ErrCode, Ok, Result } from '../error/error';
 import { Form } from '../dto/form';
 import { DataList } from '../dto/list';
@@ -50,34 +50,34 @@ function glyphToGlyphModel(glyph: Glyph): GlyphModel {
 	};
 }
 
-export async function validateUnicode(request: IRequest, env: Env) {
+export async function validateUnicode(request: IRequest, env: Env, ctx: Ctx) {
 	const unicode = parseInt(request.params['unicode']);
 	if (!Number.isInteger(unicode)) {
 		// TODO: 增加具体范围
 		return new Err(ErrCode.ParamInvalid, 'Unicode不正确');
 	}
-	env.unicode = unicode;
+	ctx.unicode = unicode;
 }
 
-export async function checkExist(request: IRequest, env: Env) {
+export async function checkExist(request: IRequest, env: Env, ctx: Ctx) {
 	// 记录是否已存在
-	let exist = await FormModel.exist(env);
+	let exist = await FormModel.exist(env, ctx.unicode);
 	if (!Ok(exist)) {
 		return exist;
 	}
 	if (!exist) {
-		return new Err(ErrCode.RecordExists, `${env.unicode} 记录不存在`);
+		return new Err(ErrCode.RecordExists, `${ctx.unicode} 记录不存在`);
 	}
 }
 
 // 记录是否已存在
-export async function checkNotExist(request: IRequest, env: Env) {
-	let exist = await FormModel.exist(env);
+export async function checkNotExist(request: IRequest, env: Env, ctx: Ctx) {
+	let exist = await FormModel.exist(env, ctx.unicode);
 	if (!Ok(exist)) {
 		return exist;
 	}
 	if (exist) {
-		return new Err(ErrCode.RecordExists, `${env.unicode} 记录已存在`);
+		return new Err(ErrCode.RecordExists, `${ctx.unicode} 记录已存在`);
 	}
 }
 
@@ -91,12 +91,12 @@ export async function ListAll(request: Request, env: Env): Promise<Result<Glyph[
 export async function CreateBatch(request: Request, env: Env) {
 	const data: any[] = await request.json();
 	const stmt = env.CHAI.prepare(
-		'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)'
+		'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)',
 	);
 	const result = await env.CHAI.batch(
 		data.map(({ unicode, name, default_type, gf0014_id, component, compound, slice }) => {
 			return stmt.bind(unicode, name, default_type, gf0014_id, component, compound, slice);
-		})
+		}),
 	);
 	return result;
 }
@@ -131,8 +131,8 @@ export async function List(request: IRequest, env: Env): Promise<Result<DataList
 }
 
 /** GET:/form/:unicode */
-export async function Info(request: IRequest, env: Env): Promise<Result<Glyph>> {
-	const glyphModel = await FormModel.byUnicode(env);
+export async function Info(request: IRequest, env: Env, ctx: Ctx): Promise<Result<Glyph>> {
+	const glyphModel = await FormModel.byUnicode(env, ctx.unicode);
 	if (!Ok(glyphModel)) {
 		return glyphModel as Err;
 	}
@@ -178,19 +178,19 @@ export async function CreateWithoutUnicode(request: IRequest, env: Env): Promise
 }
 
 /** DELETE:/form/:unicode */
-export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
-	const { results: s_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(slice, "$.source") = ?').bind(env.unicode).all();
+export async function Delete(request: IRequest, env: Env, ctx: Ctx): Promise<Result<boolean>> {
+	const { results: s_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(slice, "$.source") = ?').bind(ctx.unicode).all();
 	const c_refs = [];
 	for (const index of [0, 1, 2]) {
 		const { results: c_ref } = await env.CHAI.prepare(`SELECT * FROM form WHERE json_extract(compound, "$.operandList[${index}]") = ?`)
-			.bind(env.unicode)
+			.bind(ctx.unicode)
 			.all();
 		c_refs.push(c_ref);
 	}
-	if (s_ref.length > 0 || c_refs.some(x => x.length > 0)) {
+	if (s_ref.length > 0 || c_refs.some((x) => x.length > 0)) {
 		return new Err(ErrCode.PermissionDenied, '无法删除，因为还有别的字形引用它');
 	}
-	return await FormModel.delete(env);
+	return await FormModel.delete(env, ctx.unicode);
 }
 
 /** PUT:/form/:unicode */
@@ -211,7 +211,7 @@ export async function Update(request: IRequest, env: Env): Promise<Result<boolea
 }
 
 /** PATCH:/form/:unicode */
-export async function Mutate(request: IRequest, env: Env): Promise<Result<boolean>> {
+export async function Mutate(request: IRequest, env: Env, ctx: Ctx): Promise<Result<boolean>> {
 	// 请求参数
 	let unicode_new: unknown;
 	try {
@@ -221,8 +221,8 @@ export async function Mutate(request: IRequest, env: Env): Promise<Result<boolea
 	}
 
 	if (typeof unicode_new !== 'number' || !Number.isInteger(unicode_new)) {
-		return new Err(ErrCode.ParamInvalid, "不是整数");
+		return new Err(ErrCode.ParamInvalid, '不是整数');
 	}
 
-	return await FormModel.mutate(env, unicode_new);
+	return await FormModel.mutate(env, ctx.unicode, unicode_new);
 }
