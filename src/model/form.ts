@@ -96,7 +96,7 @@ export class FormModel {
 		return loadNumber(res);
 	}
 
-	public static async list(env: Env, offset: number, limit: number): Promise<Result<FormModel[]>> {
+	public static async list(env: Env, offset: number, limit: number): Promise<Result<GlyphModel[]>> {
 		var res;
 		try {
 			res = await env.CHAI.prepare(`SELECT * FROM ${tableForm} LIMIT ? OFFSET ?`).bind(limit, offset).all();
@@ -106,15 +106,15 @@ export class FormModel {
 		}
 
 		const { results } = res;
-		return results.map((record) => FormModel.modelFromRecord(record));
+		return results as unknown as GlyphModel[];
 	}
 
 	public static async create(env: Env, form: GlyphModel): Promise<Result<number>> {
 		try {
 			await env.CHAI.prepare(
-				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)`
+				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice, ambiguous) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 			)
-				.bind(form.unicode, form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice)
+				.bind(form.unicode, form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice, form.ambiguous)
 				.run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
@@ -136,9 +136,9 @@ export class FormModel {
 	public static async update(env: Env, form: GlyphModel): Promise<Result<boolean>> {
 		try {
 			await env.CHAI.prepare(
-				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=? WHERE unicode=?`
+				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=?, ambiguous=? WHERE unicode=?`
 			)
-				.bind(form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice, form.unicode)
+				.bind(form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice, form.ambiguous, form.unicode)
 				.run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
@@ -153,13 +153,9 @@ export class FormModel {
 			await env.CHAI.prepare(`UPDATE ${tableForm} SET slice = json_replace(slice, '$.source', ?) where json_extract(slice, '$.source') = ?`)
 				.bind(unicode_new, env.unicode)
 				.run();
-			for (const index of [0, 1, 2]) {
-				await env.CHAI.prepare(
-					`UPDATE ${tableForm} SET compound = json_replace(compound, '$.operandList[${index}]', ?) where json_extract(compound, '$.operandList[${index}]') = ?`
-				)
-					.bind(unicode_new, env.unicode)
-					.run();
-			}
+			await env.CHAI.prepare(`UPDATE ${tableForm} SET compound = REPLACE(compound, ?, ?)`)
+				.bind(env.unicode.toString(), unicode_new.toString())
+				.run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
 			return new Err(ErrCode.DataUpdateFailed, '数据更新失败');

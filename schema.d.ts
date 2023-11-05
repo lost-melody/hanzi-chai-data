@@ -8,6 +8,7 @@ interface GlyphModel {
 	component: string | null;
 	compound: string | null;
 	slice: string | null;
+	ambiguous: number;
 }
 
 // 要返回给客户端的类型是这个，其中存储了 JSON 的字段被 parse 了
@@ -15,7 +16,7 @@ interface GlyphModel {
 
 type Glyph = Omit<GlyphModel, 'component' | 'compound' | 'slice'> & {
 	component?: object;
-	compound?: { operator: string; operandList: string[] };
+	compound?: { operator: string; operandList: string[] }[];
 	slice?: { source: string; indices: number[] };
 };
 

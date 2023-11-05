@@ -11,18 +11,6 @@ import schema from '../../schema.json';
 const validateGlyph = new Validator(schema.definitions.Glyph as Schema);
 const validateNamed = new Validator(schema.definitions.NamedGlyph as Schema);
 
-function formFromModel(formModel: FormModel): Form {
-	var form = new Form();
-	form.unicode = formModel.unicode;
-	form.name = formModel.name;
-	form.default_type = formModel.default_type;
-	form.gf0014_id = formModel.gf0014_id;
-	form.component = formModel.component;
-	form.compound = formModel.compound;
-	form.slice = formModel.slice;
-	return form;
-}
-
 const charToCode = (char: string) => char.codePointAt(0)!;
 const codeToChar = (code: number) => String.fromCodePoint(code);
 
@@ -37,7 +25,7 @@ function glyphFromGlyphModel(model: GlyphModel): Glyph {
 		...model,
 		component: model.component ? JSON.parse(model.component) : undefined,
 		slice: model.slice ? sliceForward(JSON.parse(model.slice)) : undefined,
-		compound: model.compound ? compoundForward(JSON.parse(model.compound)) : undefined,
+		compound: model.compound ? JSON.parse(model.compound).map(compoundForward) : undefined,
 	};
 }
 
@@ -46,7 +34,7 @@ function glyphToGlyphModel(glyph: Glyph): GlyphModel {
 		...glyph,
 		component: glyph.component ? JSON.stringify(glyph.component) : null,
 		slice: glyph.slice ? JSON.stringify(sliceReverse(glyph.slice)) : null,
-		compound: glyph.compound ? JSON.stringify(compoundReverse(glyph.compound)) : null,
+		compound: glyph.compound ? JSON.stringify(glyph.compound.map(compoundReverse)) : null,
 	};
 }
 
@@ -102,7 +90,7 @@ export async function CreateBatch(request: Request, env: Env) {
 }
 
 /** GET:/form?page=1&size=20 */
-export async function List(request: IRequest, env: Env): Promise<Result<DataList<Form>>> {
+export async function List(request: IRequest, env: Env): Promise<Result<DataList<Glyph>>> {
 	// 第 `page` 页, 每页 `size` 条
 	const { page, size } = request.query;
 
@@ -112,7 +100,7 @@ export async function List(request: IRequest, env: Env): Promise<Result<DataList
 		return result as Err;
 	}
 
-	var formList = new DataList<Form>();
+	var formList = new DataList<Glyph>();
 	formList.total = result;
 	formList.page = parseInt(loadString(page)) || 1;
 	formList.size = parseInt(loadString(size)) || 20;
@@ -124,7 +112,7 @@ export async function List(request: IRequest, env: Env): Promise<Result<DataList
 			return result as Err;
 		}
 
-		formList.items = result.map((formModel) => formFromModel(formModel));
+		formList.items = result.map(glyphFromGlyphModel);
 	}
 
 	return formList;
@@ -180,14 +168,8 @@ export async function CreateWithoutUnicode(request: IRequest, env: Env): Promise
 /** DELETE:/form/:unicode */
 export async function Delete(request: IRequest, env: Env): Promise<Result<boolean>> {
 	const { results: s_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(slice, "$.source") = ?').bind(env.unicode).all();
-	const c_refs = [];
-	for (const index of [0, 1, 2]) {
-		const { results: c_ref } = await env.CHAI.prepare(`SELECT * FROM form WHERE json_extract(compound, "$.operandList[${index}]") = ?`)
-			.bind(env.unicode)
-			.all();
-		c_refs.push(c_ref);
-	}
-	if (s_ref.length > 0 || c_refs.some(x => x.length > 0)) {
+	const { results: c_ref } = await env.CHAI.prepare(`SELECT * FROM form WHERE compound like ?`).bind(`%${env.unicode}%`).all();
+	if (s_ref.length > 0 || c_ref.length > 0) {
 		return new Err(ErrCode.PermissionDenied, '无法删除，因为还有别的字形引用它');
 	}
 	return await FormModel.delete(env);
@@ -221,7 +203,7 @@ export async function Mutate(request: IRequest, env: Env): Promise<Result<boolea
 	}
 
 	if (typeof unicode_new !== 'number' || !Number.isInteger(unicode_new)) {
-		return new Err(ErrCode.ParamInvalid, "不是整数");
+		return new Err(ErrCode.ParamInvalid, '不是整数');
 	}
 
 	return await FormModel.mutate(env, unicode_new);
