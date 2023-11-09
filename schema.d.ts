@@ -14,10 +14,11 @@ interface GlyphModel {
 // 要返回给客户端的类型是这个，其中存储了 JSON 的字段被 parse 了
 // 未定义的字形表示方法用 undefined 来表示
 
-type Glyph = Omit<GlyphModel, 'component' | 'compound' | 'slice'> & {
+type Glyph = Omit<GlyphModel, 'component' | 'compound' | 'slice' | 'ambiguous'> & {
 	component?: object;
 	compound?: { operator: string; operandList: string[] }[];
 	slice?: { source: string; indices: number[] };
+	ambiguous: boolean;
 };
 
 interface NamedGlyph extends Omit<Glyph, 'unicode'> {

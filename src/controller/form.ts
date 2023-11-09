@@ -26,6 +26,7 @@ function glyphFromGlyphModel(model: GlyphModel): Glyph {
 		component: model.component ? JSON.parse(model.component) : undefined,
 		slice: model.slice ? sliceForward(JSON.parse(model.slice)) : undefined,
 		compound: model.compound ? JSON.parse(model.compound).map(compoundForward) : undefined,
+		ambiguous: model.ambiguous === 1,
 	};
 }
 
@@ -35,6 +36,7 @@ function glyphToGlyphModel(glyph: Glyph): GlyphModel {
 		component: glyph.component ? JSON.stringify(glyph.component) : null,
 		slice: glyph.slice ? JSON.stringify(sliceReverse(glyph.slice)) : null,
 		compound: glyph.compound ? JSON.stringify(glyph.compound.map(compoundReverse)) : null,
+		ambiguous: +glyph.ambiguous
 	};
 }
 
