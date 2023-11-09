@@ -9,7 +9,7 @@ import { Claims } from '../dto/jwt';
 import { authorizedAdmin } from '../middleware/jwt';
 
 /** 字母开头, 字母或数字结尾, [_-] 连接 */
-const patUid = /^[a-zA-Z]+([_-][a-zA-Z0-9]+)*$/;
+const patUid = /^[a-zA-Z]([_-]?[a-zA-Z0-9]+)*$/;
 /** 任意字符 */
 const patName = /^.+$/;
 /** 字母数字邮箱 */
