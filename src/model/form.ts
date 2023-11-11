@@ -11,7 +11,6 @@ export class FormModel {
 	gf0014_id: number = 0;
 	component: string = '';
 	compound: string = '';
-	slice: string = '';
 
 	public static modelFromRecord(record: Record<string, any>): FormModel {
 		var formModel = new FormModel();
@@ -21,7 +20,6 @@ export class FormModel {
 		formModel.gf0014_id = loadNumber(record.gf0014_id);
 		formModel.component = loadString(record.component);
 		formModel.compound = loadString(record.compound);
-		formModel.slice = loadString(record.slice);
 		return formModel;
 	}
 
@@ -41,11 +39,12 @@ export class FormModel {
 		return res;
 	}
 
-	public static async generateUnicode(env: Env, type: number): Promise<Result<number>> {
+	public static async generateUnicode(env: Env, type: "component" | "compound"): Promise<Result<number>> {
 		var res: any[];
-		const breakpoint = [0xe000, 0xe400, 0xe800, 0xf000] as const;
-		const from = breakpoint[type];
-		const to = breakpoint[type + 1];
+		const index = type === "component" ? 0 : 1;
+		const breakpoint = [0xe000, 0xe800, 0xf000] as const;
+		const from = breakpoint[index];
+		const to = breakpoint[index + 1];
 		try {
 			const { results } = await env.CHAI.prepare(`SELECT unicode FROM ${tableForm} WHERE unicode >= ? AND unicode < ?`)
 				.bind(from, to)
@@ -112,9 +111,9 @@ export class FormModel {
 	public static async create(env: Env, form: GlyphModel): Promise<Result<number>> {
 		try {
 			await env.CHAI.prepare(
-				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, slice, ambiguous) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO ${tableForm} (unicode, name, default_type, gf0014_id, component, compound, ambiguous) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			)
-				.bind(form.unicode, form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice, form.ambiguous)
+				.bind(form.unicode, form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.ambiguous)
 				.run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
@@ -136,9 +135,9 @@ export class FormModel {
 	public static async update(env: Env, form: GlyphModel): Promise<Result<boolean>> {
 		try {
 			await env.CHAI.prepare(
-				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, slice=?, ambiguous=? WHERE unicode=?`,
+				`UPDATE ${tableForm} SET name=?, default_type=?, gf0014_id=?, component=?, compound=?, ambiguous=? WHERE unicode=?`,
 			)
-				.bind(form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.slice, form.ambiguous, form.unicode)
+				.bind(form.name, form.default_type, form.gf0014_id, form.component, form.compound, form.ambiguous, form.unicode)
 				.run();
 		} catch (err) {
 			console.warn({ message: (err as Error).message });
@@ -150,7 +149,7 @@ export class FormModel {
 	public static async mutate(env: Env, unicode: number, unicode_new: number): Promise<Result<boolean>> {
 		try {
 			await env.CHAI.prepare(`UPDATE ${tableForm} SET unicode = ? where unicode = ?`).bind(unicode_new, unicode).run();
-			await env.CHAI.prepare(`UPDATE ${tableForm} SET slice = json_replace(slice, '$.source', ?) where json_extract(slice, '$.source') = ?`)
+			await env.CHAI.prepare(`UPDATE ${tableForm} SET component = json_replace(component, '$.source', ?) where json_extract(component, '$.source') = ?`)
 				.bind(unicode_new, unicode)
 				.run();
 			await env.CHAI.prepare(`UPDATE ${tableForm} SET compound = REPLACE(compound, ?, ?)`)

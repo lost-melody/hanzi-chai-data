@@ -101,7 +101,6 @@
 	"gf0014_id": 0,
 	"component": "",
 	"compound": "",
-	"slice": ""
 }
 ```
 

@@ -7,34 +7,53 @@
 			"additionalProperties": false,
 			"properties": {
 				"component": {
-					"anyOf": [
-						{
-							"type": "object"
+					"type": "object",
+					"properties": {
+						"source": {
+							"type": "string"
 						},
-						{
-							"type": "null"
+						"strokes": {
+							"type": "array",
+							"items": {
+								"anyOf": [
+									{
+										"type": "number"
+									},
+									{
+										"type": "object"
+									}
+								]
+							}
 						}
-					]
+					},
+					"required": ["strokes"],
+					"additionalProperties": false
 				},
 				"compound": {
-					"anyOf": [
-						{
-							"type": "object"
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"operator": {
+								"type": "string"
+							},
+							"operandList": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							}
 						},
-						{
-							"type": "null"
-						}
-					]
+						"required": ["operator", "operandList"],
+						"additionalProperties": false
+					}
 				},
-				"slice": {
-					"anyOf": [
-						{
-							"type": "object"
-						},
-						{
-							"type": "null"
-						}
-					]
+				"ambiguous": {
+					"type": "boolean"
+				},
+				"default_type": {
+					"type": "string",
+					"enum": ["component", "compound"]
 				},
 				"unicode": {
 					"type": "number"
@@ -42,15 +61,11 @@
 				"name": {
 					"type": ["string", "null"]
 				},
-				"default_type": {
-					"type": "number",
-					"enum": [0, 1, 2]
-				},
 				"gf0014_id": {
 					"type": ["number", "null"]
 				}
 			},
-			"required": ["component", "compound", "default_type", "gf0014_id", "name", "slice", "unicode"]
+			"required": ["ambiguous", "default_type", "gf0014_id", "name", "unicode"]
 		},
 
 		"NamedGlyph": {
@@ -59,45 +74,60 @@
 				"name": {
 					"type": "string"
 				},
-				"default_type": {
-					"type": "number",
-					"enum": [0, 1, 2]
-				},
 				"gf0014_id": {
 					"type": ["number", "null"]
 				},
 				"component": {
-					"anyOf": [
-						{
-							"type": "object"
+					"type": "object",
+					"properties": {
+						"source": {
+							"type": "string"
 						},
-						{
-							"type": "null"
+						"strokes": {
+							"type": "array",
+							"items": {
+								"anyOf": [
+									{
+										"type": "number"
+									},
+									{
+										"type": "object"
+									}
+								]
+							}
 						}
-					]
+					},
+					"required": ["strokes"],
+					"additionalProperties": false
 				},
 				"compound": {
-					"anyOf": [
-						{
-							"type": "object"
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"operator": {
+								"type": "string"
+							},
+							"operandList": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							}
 						},
-						{
-							"type": "null"
-						}
-					]
+						"required": ["operator", "operandList"],
+						"additionalProperties": false
+					}
 				},
-				"slice": {
-					"anyOf": [
-						{
-							"type": "object"
-						},
-						{
-							"type": "null"
-						}
-					]
+				"ambiguous": {
+					"type": "boolean"
+				},
+				"default_type": {
+					"type": "string",
+					"enum": ["component", "compound"]
 				}
 			},
-			"required": ["component", "compound", "default_type", "gf0014_id", "name", "slice"],
+			"required": ["ambiguous", "default_type", "gf0014_id", "name"],
 			"additionalProperties": false
 		}
 	}

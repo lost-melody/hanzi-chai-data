@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS form (
 	gf0014_id INTEGER,
 	component TEXT,
 	compound TEXT,
-	slice TEXT,
 	ambiguous INTEGER
 );
 

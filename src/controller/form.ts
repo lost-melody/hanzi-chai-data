@@ -1,7 +1,6 @@
 import { IRequest } from 'itty-router';
 import { Ctx, Env } from '../dto/context';
 import { Err, ErrCode, Ok, Result } from '../error/error';
-import { Form } from '../dto/form';
 import { DataList } from '../dto/list';
 import { FormModel } from '../model/form';
 import { loadNumber, loadString } from '../dto/load';
@@ -14,8 +13,8 @@ const validateNamed = new Validator(schema.definitions.NamedGlyph as Schema);
 const charToCode = (char: string) => char.codePointAt(0)!;
 const codeToChar = (code: number) => String.fromCodePoint(code);
 
-const sliceForward = (c: any) => ({ ...c, source: codeToChar(c.source) });
-const sliceReverse = (c: any) => ({ ...c, source: charToCode(c.source) });
+const componentForward = (c: any) => ({ ...c, source: c.source && codeToChar(c.source) });
+const componentReverse = (c: any) => ({ ...c, source: c.source && charToCode(c.source) });
 
 const compoundForward = (c: any) => ({ ...c, operandList: c.operandList.map(codeToChar) });
 const compoundReverse = (c: any) => ({ ...c, operandList: c.operandList.map(charToCode) });
@@ -23,20 +22,20 @@ const compoundReverse = (c: any) => ({ ...c, operandList: c.operandList.map(char
 function glyphFromGlyphModel(model: GlyphModel): Glyph {
 	return {
 		...model,
-		component: model.component ? JSON.parse(model.component) : undefined,
-		slice: model.slice ? sliceForward(JSON.parse(model.slice)) : undefined,
+		component: model.component ? componentForward(JSON.parse(model.component)) : undefined,
 		compound: model.compound ? JSON.parse(model.compound).map(compoundForward) : undefined,
 		ambiguous: model.ambiguous === 1,
+		default_type: model.default_type === 0 ? 'component' : 'compound',
 	};
 }
 
 function glyphToGlyphModel(glyph: Glyph): GlyphModel {
 	return {
 		...glyph,
-		component: glyph.component ? JSON.stringify(glyph.component) : null,
-		slice: glyph.slice ? JSON.stringify(sliceReverse(glyph.slice)) : null,
+		component: glyph.component ? JSON.stringify(componentReverse(glyph.component)) : null,
 		compound: glyph.compound ? JSON.stringify(glyph.compound.map(compoundReverse)) : null,
-		ambiguous: +glyph.ambiguous
+		ambiguous: +glyph.ambiguous as 0 | 1,
+		default_type: glyph.default_type === 'component' ? 0 : 1,
 	};
 }
 
@@ -75,20 +74,6 @@ export async function checkNotExist(request: IRequest, env: Env, ctx: Ctx) {
 export async function ListAll(request: Request, env: Env): Promise<Result<Glyph[]>> {
 	const { results } = await env.CHAI.prepare('SELECT * FROM form').all();
 	return (results as unknown as GlyphModel[]).map(glyphFromGlyphModel);
-}
-
-/** POST:/form/batch */
-export async function CreateBatch(request: Request, env: Env) {
-	const data: any[] = await request.json();
-	const stmt = env.CHAI.prepare(
-		'INSERT INTO form (unicode, name, default_type, gf0014_id, component, compound, slice) VALUES (?, ?, ?, ?, ?, ?, ?)',
-	);
-	const result = await env.CHAI.batch(
-		data.map(({ unicode, name, default_type, gf0014_id, component, compound, slice }) => {
-			return stmt.bind(unicode, name, default_type, gf0014_id, component, compound, slice);
-		}),
-	);
-	return result;
 }
 
 /** GET:/form?page=1&size=20 */
@@ -158,18 +143,21 @@ export async function CreateWithoutUnicode(request: IRequest, env: Env): Promise
 	if (!validateNamed.validate(glyph)) {
 		return new Err(ErrCode.ParamInvalid, '请求不合法');
 	}
-	const unicode = await FormModel.generateUnicode(env, (glyph as Glyph).default_type);
+	const validatedGlyph = glyph as Glyph;
+	const unicode = await FormModel.generateUnicode(env, validatedGlyph.default_type);
 
 	if (!Ok(unicode)) {
 		return unicode;
 	}
 
-	return await FormModel.create(env, glyphToGlyphModel({ ...(glyph as Glyph), unicode }));
+	return await FormModel.create(env, glyphToGlyphModel({ ...validatedGlyph, unicode }));
 }
 
 /** DELETE:/form/:unicode */
 export async function Delete(request: IRequest, env: Env, ctx: Ctx): Promise<Result<boolean>> {
-	const { results: s_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(slice, "$.source") = ?').bind(ctx.unicode).all();
+	const { results: s_ref } = await env.CHAI.prepare('SELECT * FROM form WHERE json_extract(component, "$.source") = ?')
+		.bind(ctx.unicode)
+		.all();
 	const { results: c_ref } = await env.CHAI.prepare(`SELECT * FROM form WHERE compound like ?`).bind(`%${ctx.unicode}%`).all();
 	if (s_ref.length > 0 || c_ref.length > 0) {
 		return new Err(ErrCode.PermissionDenied, '无法删除，因为还有别的字形引用它');
