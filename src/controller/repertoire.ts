@@ -1,8 +1,16 @@
 import { Env } from '../dto/context';
 
+function charFromCharModel(model: CharModel): Char {
+	return {
+		...model,
+		pinyin: JSON.parse(model.pinyin),
+		gb2312: model.gb2312 === 1
+	};
+}
+
 export async function List(request: Request, env: Env) {
 	const { results } = await env.CHAI.prepare('SELECT * FROM repertoire').all();
-	return results;
+	return (results as unknown as CharModel[]).map(charFromCharModel);
 }
 
 export async function Create(request: Request, env: Env) {
