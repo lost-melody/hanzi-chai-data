@@ -4,6 +4,7 @@
  */
 export interface Env {
 	CHAI: D1Database;
+	REFERENCE: KVNamespace;
 	JWT_KEY: string;
 }
 
